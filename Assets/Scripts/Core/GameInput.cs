@@ -29,6 +29,19 @@ public static class GameInput
         }
     }
 
+    /// <summary>Тестова клавіша K: "тебе спіймали". Лише для налагодження.</summary>
+    public static bool DebugCaughtPressed
+    {
+        get
+        {
+#if ENABLE_INPUT_SYSTEM
+            return Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame;
+#else
+            return Input.GetKeyDown(KeyCode.K);
+#endif
+        }
+    }
+
     /// <summary>True лише в кадрі, коли натиснули E. Викликати з Update().</summary>
     public static bool InteractPressed
     {

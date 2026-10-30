@@ -16,6 +16,8 @@ public class GameManager : MonoBehaviour
 
     [Tooltip("Пауза перед перезапуском або наступним рівнем, щоб гравець побачив, що сталося")]
     [SerializeField] float transitionDelay = 1.5f;
+    [Tooltip("Для тестових сцен: після виходу перезапускати цю ж сцену, а не вантажити наступну")]
+    [SerializeField] bool restartInsteadOfNext;
 
     public bool IsLevelOver { get; private set; }
 
@@ -50,7 +52,7 @@ public class GameManager : MonoBehaviour
         if (IsLevelOver) return;
         IsLevelOver = true;
         OnLevelComplete?.Invoke();
-        Invoke(nameof(LoadNextLevel), transitionDelay);
+        Invoke(restartInsteadOfNext ? nameof(RestartLevel) : nameof(LoadNextLevel), transitionDelay);
     }
 
     public void RestartLevel()
