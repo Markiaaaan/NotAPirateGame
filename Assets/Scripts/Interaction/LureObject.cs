@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
@@ -5,9 +6,9 @@ using UnityEngine.Events;
 /// <summary>
 /// Універсальна приманка: скинути річ, увімкнути ТВ чи радіо, телефон тощо.
 /// Усе налаштовується в інспекторі, тож з одного скрипта виходить кілька різних предметів:
-///   Скинута ваза: loudness 8,  duration 0, suspicion 0.15
-///   Телевізор:    loudness 12, duration 6, suspicion 0.25
-///   Телефон:      loudness 18, duration 4, suspicion 0.20
+///   Скинута ваза: loudness 7,  duration 0, suspicion 0.15
+///   Телевізор:    loudness 10, duration 5, suspicion 0.2
+///   Телефон:      loudness 15, duration 3, suspicion 0.2
 /// </summary>
 public class LureObject : Interactable
 {
@@ -27,6 +28,11 @@ public class LureObject : Interactable
     [SerializeField] UnityEvent onDeactivated;
 
     public bool IsActive { get; private set; }
+    public float Duration => duration;
+
+    /// <summary>Для скриптів (наприклад LureVisuals): приманка спрацювала / закінчилась.</summary>
+    public event Action Activated;
+    public event Action Deactivated;
 
     protected override void Awake()
     {
@@ -45,6 +51,7 @@ public class LureObject : Interactable
 
         if (audioSource != null && clip != null) audioSource.PlayOneShot(clip);
         onActivated.Invoke();
+        Activated?.Invoke();
 
         if (duration > 0f) StartCoroutine(ActiveRoutine());
     }
@@ -55,6 +62,7 @@ public class LureObject : Interactable
         yield return new WaitForSeconds(duration);
         IsActive = false;
         onDeactivated.Invoke();
+        Deactivated?.Invoke();
     }
 
     void OnDrawGizmosSelected()

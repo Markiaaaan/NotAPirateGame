@@ -119,7 +119,9 @@ public static class TestSceneBuilder
         // Анімації привида (якщо кадри лежать у Sprites/Characters/Ghost)
         if (File.Exists(GhostAnimationSetup.FirstFramePath))
         {
-            var controller = GhostAnimationSetup.CreateAssets();
+            // беремо вже створений контролер, щоб не зламати посилання в префабі Player
+            var controller = AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(GhostAnimationSetup.ControllerPath);
+            if (controller == null) controller = GhostAnimationSetup.CreateAssets();
             if (controller != null) GhostAnimationSetup.AttachTo(player, controller);
         }
 
