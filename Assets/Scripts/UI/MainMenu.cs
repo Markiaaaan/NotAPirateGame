@@ -202,7 +202,7 @@ public class MainMenu : MonoBehaviour
         it.change = ChangeSkin;
         it.click = () => ShowPage(Page.Main, 1);
         it.show = () => SkinName(GameSettings.Skin);
-        it.help = "← → - інший скін, Enter - готово. Вибір зберігається одразу.";
+        it.help = "← → - інший скін. Клік на великому скіні - підтвердити вибір.";
         skinNameText = it.label;
         skinPrev = UIFactory.MakeText(root, "Prev", "◄", 96, c, new Vector2(-430f, -85f), new Vector2(130f, 110f), TextAnchor.MiddleCenter, Selected).rectTransform;
         skinNext = UIFactory.MakeText(root, "Next", "►", 96, c, new Vector2(430f, -85f), new Vector2(130f, 110f), TextAnchor.MiddleCenter, Selected).rectTransform;
@@ -381,19 +381,35 @@ public class MainMenu : MonoBehaviour
 
     void ClickSkins(Vector2 mp)
     {
+        // Клік на великий скін = підтвердити вибір і повернутися в меню
+        if (RectTransformUtility.RectangleContainsScreenPoint(previewImage.rectTransform, mp, null))
+        {
+            PlaySelect();
+            ShowPage(Page.Main, 1);
+            return;
+        }
+
+        // Клік на маленький квадратик = лише вибрати скін
         for (int i = 0; i < thumbFrames.Count; i++)
         {
-            if (!RectTransformUtility.RectangleContainsScreenPoint(thumbFrames[i].rectTransform, mp, null)) continue;
-            if (i < SkinCount && i != GameSettings.Skin)
+            if (!RectTransformUtility.RectangleContainsScreenPoint(thumbFrames[i].rectTransform, mp, null))
+                continue;
+
+            if (i < SkinCount)
             {
                 GameSettings.Skin = i;
                 PlayMove();
                 Refresh();
             }
+
             return;
         }
-        if (RectTransformUtility.RectangleContainsScreenPoint(skinPrev, mp, null)) Change(items[Page.Skins][0], -1);
-        else if (RectTransformUtility.RectangleContainsScreenPoint(skinNext, mp, null)) Change(items[Page.Skins][0], 1);
+
+        // Стрілки перемикання скінів
+        if (RectTransformUtility.RectangleContainsScreenPoint(skinPrev, mp, null))
+            Change(items[Page.Skins][0], -1);
+        else if (RectTransformUtility.RectangleContainsScreenPoint(skinNext, mp, null))
+            Change(items[Page.Skins][0], 1);
     }
 
     void ChangeSkin(int dir)

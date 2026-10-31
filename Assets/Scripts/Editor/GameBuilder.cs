@@ -538,7 +538,7 @@ public static class GameBuilder
     static GameObject MakeLever()
     {
         var go = MakeLure<LeverLure>("Lever", "Props/lever_up.png", new Vector2(0.6f, 0.5f), new Vector2(0f, -0.2f),
-            "Потягти важіль (відчинить вихід, але гучно!)", 0f, 1f, true, 14f, 3f, 0.3f, "lever_pull");
+            "Потягти важіль (відчинить вихід, але гучно!)", 0f, 1f, true, 60f, 3f, 0.3f, "lever_pull");
         Set(go.GetComponent<LeverLure>(),
             ("body", go.GetComponent<SpriteRenderer>()), ("downSprite", S("Props/lever_down.png")));
         return go;

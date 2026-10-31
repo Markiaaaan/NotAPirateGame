@@ -86,6 +86,24 @@ public class LevelGrid : MonoBehaviour
         return true;
     }
 
+    // ЗМІНЕНО: новий метод. Видимість (HasLineOfSight) не бачить воду, а ходьба - бачить.
+    /// <summary>
+    /// Чи можна пройти по прямій від from до to, не зачепивши стіну, полицю чи воду
+    /// (воду - якщо allowWater = false). Клітинка призначення не перевіряється.
+    /// </summary>
+    public bool CanWalkStraight(Vector2 from, Vector2 to, bool allowWater)
+    {
+        Vector2Int a = WorldToCell(from), b = WorldToCell(to);
+        int steps = Mathf.CeilToInt(Vector2.Distance(from, to) / 0.2f);
+        for (int i = 1; i < steps; i++)
+        {
+            Vector2Int c = WorldToCell(Vector2.Lerp(from, to, i / (float)steps));
+            if (c == a || c == b) continue;
+            if (!IsWalkable(c, allowWater)) return false;
+        }
+        return true;
+    }
+
     /// <summary>Найближча клітинка, по якій можна ходити.</summary>
     public Vector2Int NearestWalkable(Vector2Int c) => NearestWalkable(c, false);
 
@@ -120,6 +138,14 @@ public class LevelGrid : MonoBehaviour
     public bool FindPath(Vector2 from, Vector2 to, List<Vector2> result) => FindPath(from, to, result, false);
 
     public bool FindPath(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater)
+        => FindPathInternal(from, to, result, allowWater, false);
+
+    // ЗМІНЕНО: новий метод. Якщо до цілі дійти не можна (кімната за обладунками, привид над рікою,
+    // а ворог не вміє літати), веде до найближчої досяжної клітинки замість того, щоб стояти на місці.
+    public bool FindPathToward(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater)
+        => FindPathInternal(from, to, result, allowWater, true);
+
+    bool FindPathInternal(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater, bool closestIfBlocked)
     {
         result.Clear();
         if (Width == 0) return false;
@@ -141,11 +167,15 @@ public class LevelGrid : MonoBehaviour
         var queue = new Queue<Vector2Int>();
         queue.Enqueue(start);
         bool found = false;
+        Vector2Int best = start;
+        int bestD = int.MaxValue;
 
         while (queue.Count > 0)
         {
             Vector2Int c = queue.Dequeue();
             if (c == goal) { found = true; break; }
+            int dd = (c.x - goal.x) * (c.x - goal.x) + (c.y - goal.y) * (c.y - goal.y);
+            if (dd < bestD) { bestD = dd; best = c; }
 
             foreach (var d in Dirs)
             {
@@ -162,7 +192,11 @@ public class LevelGrid : MonoBehaviour
             }
         }
 
-        if (!found) return false;
+        if (!found)
+        {
+            if (!closestIfBlocked) return false;
+            goal = best;
+        }
 
         int cur = goal.y * w + goal.x;
         while (cur != startIdx)
