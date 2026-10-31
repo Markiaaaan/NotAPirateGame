@@ -296,9 +296,7 @@ public class MainMenu : MonoBehaviour
         headerText.text = p == Page.Skins ? "СКІНИ ПРИВИДА" : p == Page.Settings ? "НАЛАШТУВАННЯ" : "";
         ghostImage.enabled = main && ghostImage.sprite != null;
         ghostCaption.enabled = main;
-        hintText.text = p == Page.Main
-            ? "↑↓ - вибір     Enter - OK     миша теж працює"
-            : "↑↓ - вибір     ← → - змінити     Enter - OK     Esc - назад";
+        hintText.text = " ";
         selected = Mathf.Clamp(select, 0, items[p].Count - 1);
         Refresh();
     }
