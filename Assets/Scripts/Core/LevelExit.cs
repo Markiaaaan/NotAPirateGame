@@ -127,7 +127,7 @@ public class LevelExit : MonoBehaviour
             if (lockedMessageTimer > 0f) return;
             lockedMessageTimer = 2f;
             GameAudio.Play(lockedClip);
-            Message?.Invoke(requiresKey ? "Замкнено! Ключ у Ключника. Заманюй його під кам'яний вантаж."
+            Message?.Invoke(requiresKey ? "Замкнено! Ключ у Ключника. Скидай на нього кам'яні вантажі."
                 : leversNeeded > 1
                 ? $"Замкнено! Потягни всі важелі: {leversPulled} з {leversNeeded}"
                 : "Замкнено! Знайди важіль, щоб відчинити вихід");

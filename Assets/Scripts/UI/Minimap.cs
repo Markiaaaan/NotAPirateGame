@@ -276,9 +276,17 @@ public class Minimap : MonoBehaviour
             }
         }
 
-        var trap = BossTrap.Instance;
-        if (trap != null && !trap.IsComplete)
+        // місячні промені: бліді плями, що повзуть залою
+        foreach (var beam in MoonBeam.All)
         {
+            if (beam == null || !beam.isActiveAndEnabled) continue;
+            Vector2 p = beam.transform.position;
+            Disk((p.x + 0.5f) * C, (-p.y + 0.5f) * C, beam.Radius * C, new Color32(170, 205, 255, 255), 0.22f);
+        }
+
+        foreach (var trap in BossTrap.All)
+        {
+            if (trap == null || trap.IsComplete) continue;
             Vector2 p = trap.ImpactPosition;
             Ring((p.x + 0.5f) * C, (-p.y + 0.5f) * C, 1.8f * C,
                 trap.IsDropping ? new Color32(255, 80, 40, 255) : new Color32(255, 200, 70, 255), 0.8f);

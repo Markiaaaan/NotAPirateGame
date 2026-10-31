@@ -117,7 +117,19 @@ public class GuardAI : MonoBehaviour
     Vector2 lastSeenPos;
 
     float Alert => SuspicionMeter.Level;
-    float SpeedMul => 1f + 0.25f * Alert;
+    float SpeedMul => (1f + 0.25f * Alert) * SpeedScale;
+
+    /// <summary>Додатковий множник швидкості (Ключник лютішає після кожного влучання).</summary>
+    public float SpeedScale { get; set; } = 1f;
+    float stunUntil;
+    /// <summary>Приголомшений: стоїть на місці й не бачить привида.</summary>
+    public bool IsStunned => Time.time < stunUntil;
+    public void Stun(float seconds)
+    {
+        stunUntil = Mathf.Max(stunUntil, Time.time + seconds);
+        moving = false;
+        notice = 0f;
+    }
 
     // злий дух
     Vector2 lastGhostPos;
@@ -249,6 +261,7 @@ public class GuardAI : MonoBehaviour
             else moving = false;
             UpdateSpiritFx(dt);
         }
+        else if (IsStunned) moving = false;
         else if (state != State.Caught)
         {
             Vision(dt);

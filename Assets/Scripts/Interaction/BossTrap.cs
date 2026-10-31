@@ -1,10 +1,17 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>Ланцюг скидає багаторазовий вантаж. Промах не блокує проходження.</summary>
+/// <summary>
+/// Ланцюг скидає кам'яний вантаж на позначку. Промах не страшний: вантаж піднімається назад.
+/// Влучання по Ключнику розбиває камінь, тож кожен вантаж б'є лише раз.
+/// </summary>
 public class BossTrap : Interactable
 {
-    public static BossTrap Instance { get; private set; }
+    /// <summary>Перший ланцюг на рівні (для старого коду).</summary>
+    public static BossTrap Instance => All.Count > 0 ? All[0] : null;
+    /// <summary>Усі ланцюги рівня.</summary>
+    public static readonly List<BossTrap> All = new List<BossTrap>();
     [SerializeField] BossJailer boss;
     [SerializeField] Vector2 impactPosition;
     [SerializeField] SpriteRenderer stone;
@@ -12,21 +19,22 @@ public class BossTrap : Interactable
     [SerializeField] AudioClip chainClip, impactClip;
     const float Radius = 1.8f;
     const float HangingHeight = 1.6f;
-    bool operating;
+    bool operating, spent;
     public Vector2 ImpactPosition => impactPosition;
     public SpriteRenderer Stone => stone;
     public float StoneHeight { get; private set; } = HangingHeight;
     public bool IsDropping { get; private set; }
-    public bool IsComplete => boss != null && boss.IsDefeated;
+    /// <summary>Вантаж уже влучив (розбився) або Ключника вже немає.</summary>
+    public bool IsComplete => spent || (boss != null && boss.IsDefeated);
     public bool BossInZone => boss != null && !boss.IsDefeated
         && Vector2.Distance(boss.transform.position, impactPosition) <= Radius;
     public override bool IsAvailable => base.IsAvailable && !operating && !IsComplete;
-    public override string Prompt => BossInZone ? "Ключник під вантажем — тягни ланцюг!" : "Потягти ланцюг пастки";
+    public override string Prompt => BossInZone ? "Ключник під вантажем - тягни ланцюг!" : "Потягти ланцюг вантажу";
 
     protected override void Awake()
     {
         base.Awake();
-        Instance = this;
+        if (!All.Contains(this)) All.Add(this);
         if (marker != null)
         {
             marker.sprite = MakeMarker();
@@ -37,7 +45,7 @@ public class BossTrap : Interactable
 
     void OnDestroy()
     {
-        if (Instance == this) Instance = null;
+        All.Remove(this);
     }
 
     protected override void OnInteract(PlayerInteractor who)
@@ -79,14 +87,15 @@ public class BossTrap : Interactable
         }
         if (BossInZone)
         {
-            boss.Defeat();
+            spent = true;
+            boss.Hit();
             if (stone != null) stone.enabled = false;
             if (marker != null) marker.enabled = false;
             IsDropping = false;
             operating = false;
             yield break;
         }
-        LevelExit.Announce("Промах! Принади Ключника дзвоном під позначку й спробуй ще.");
+        LevelExit.Announce("Промах! Удар у дзвін під вантажем, щоб Ключник прийшов, і тягни знову.");
         yield return new WaitForSeconds(0.6f);
         for (float t = 0f; t < 0.8f; t += Time.deltaTime)
         {

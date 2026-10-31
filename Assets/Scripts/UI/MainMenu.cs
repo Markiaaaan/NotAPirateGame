@@ -142,7 +142,7 @@ public class MainMenu : MonoBehaviour
             bg.preserveAspect = false;
             Stretch(bg.rectTransform);
         }
-        var shade = UIFactory.MakeImage(root, "Shade", c, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.3f));
+        var shade = UIFactory.MakeImage(root, "Shade", c, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.18f));
         Stretch(shade.rectTransform);
 
         titleText = UIFactory.MakeText(root, "Title", gameTitle, 128, top, new Vector2(0f, -56f), new Vector2(1880f, 160f),

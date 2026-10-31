@@ -40,15 +40,15 @@ public static class GameBuilder
     static readonly string[] IntroLines =
     {
         "Далеко під землею, серед забутих тунелів і стародавніх руїн, ховається підземелля, про яке не знають навіть найсміливіші шукачі пригод.",
-        "Одного загадкового вечора маленький привид випадково потрапив у пастку темних сил. Важкі кам'яні ворота зачинилися за ним, відрізавши шлях назад.",
+        "Однієї місячної ночі маленький привид випадково потрапив у пастку темних сил. Важкі кам'яні ворота зачинилися за ним, і місячне світло лишилося десь високо нагорі.",
         "Тепер він опинився у світі, де кожен коридор ховає небезпеку, кожна тінь може виявитися ворогом, а за кожними дверима чекає нове випробування.",
         "Щоб повернутися на волю, привид повинен пройти всі рівні підземелля, подолати пастки, розгадати таємниці та знайти шлях до виходу.",
-        "Але пам'ятай: підземелля не відпускає тих, хто здається. Чи зможеш ти допомогти привиду вибратися звідси? Твоя пригода починається зараз!",
+        "Але пам'ятай: підземелля не відпускає тих, хто здається. Допоможи привиду вибратися й знову побачити місяць. Твоя пригода починається зараз!",
     };
 
     static readonly string[] TwistLines =
     {
-        "За склепом знайшлися сходи нагору. У прочиненій брамі сяяв світанок. Ще кілька кроків — і привид нарешті буде вільний.",
+        "За склепом знайшлися сходи нагору. У прочиненій брамі сяяв місяць. Ще кілька кроків — і привид нарешті буде вільний.",
         "Та в брамі виріс велетенський дух. «Ти справді думав, що я тебе відпущу?» Світло згасло. Шлях до волі перекрив Сторож.",
         "Привид кинувся назад, але крик Сторожа скував його політ. Старий міст тріснув. Герой зірвався в темряву разом з уламками.",
         "Привид упав у залу Ключника. Вихід замкнений, а ключ носить велетенський скелет. Силою його не здолати. Треба перехитрити вартового.",
@@ -57,8 +57,8 @@ public static class GameBuilder
     static readonly string[] EndingLines =
     {
         "Ключ повернувся в замку — і кам'яні ворота з гуркотом поповзли вгору. Згори повіяло свіжим повітрям. Цього разу вихід справжній.",
-        "Сходинка за сходинкою... і ось воно, старе місто! Маленький привид вилітає з підземелля просто на світанку.",
-        "Над дахами сходить сонце. Темні сили лишилися глибоко внизу, і жодні ворота більше його не втримають.",
+        "Сходинка за сходинкою... і ось воно, старе місто! Маленький привид вилітає з підземелля посеред ночі.",
+        "Над дахами сяє місяць. Темні сили лишилися глибоко внизу, і жодні ворота більше його не втримають.",
         "Дякуємо, що грали!",
     };
 
@@ -152,6 +152,7 @@ public static class GameBuilder
             EnsureFolder(PrefabsFolder);
             EnsureFolder(ScenesFolder);
             var prefabs = EnsurePrefabs(forcePrefabs);
+            RefreshPlayerSkins(prefabs.player);
             // старий сторож більше не потрібен (його замінили скелет і дух)
             if (AssetDatabase.LoadAssetAtPath<GameObject>(PrefabsFolder + "/Guard.prefab") != null)
                 AssetDatabase.DeleteAsset(PrefabsFolder + "/Guard.prefab");
@@ -350,6 +351,24 @@ public static class GameBuilder
             key = EnsurePrefab("Key", force, MakeKey),
             lever = EnsurePrefab("Lever", force, MakeLever),
         };
+    }
+
+    /// <summary>
+    /// Оновлює список скінів у готовому префабі привида, щоб нові скіни з GhostSkinLibrary
+    /// з'являлися в грі без повного перезбирання префабів.
+    /// </summary>
+    static void RefreshPlayerSkins(GameObject prefab)
+    {
+        if (prefab == null) return;
+        string path = AssetDatabase.GetAssetPath(prefab);
+        var root = PrefabUtility.LoadPrefabContents(path);
+        var skin = root.GetComponent<GhostSkin>();
+        if (skin != null)
+        {
+            Set(skin, ("classicFrames", GhostFrames("")), ("skinFrames", AllSkinFrames()), ("skinNames", GhostSkinLibrary.Names));
+            PrefabUtility.SaveAsPrefabAsset(root, path);
+        }
+        PrefabUtility.UnloadPrefabContents(root);
     }
 
     static GameObject EnsurePrefab(string name, bool force, Func<GameObject> make)
@@ -735,7 +754,8 @@ public static class GameBuilder
         gridGo.AddComponent<LevelGrid>().SetRows(rows);
 
         GameObject player = null, exitGo = null;
-        BossTrap bossTrap = null;
+        var chains = new List<Vector2>();    // F: ланцюги вантажів
+        var impacts = new List<Vector2>();   // U: дзвін під вантажем (туди падає камінь)
         var mannequins = new List<GameObject>();
         var targets = new List<Vector2>();
         var marks = new Dictionary<char, Vector2>();   // точки маршрутів: 1..9 і a..l
@@ -778,9 +798,8 @@ public static class GameBuilder
                     case 'E': exitGo = Place(prefabs.exit, pos, level); break;
                     case '*': Place(prefabs.key, pos, lureRoot); break;
                     case 'X': Place(prefabs.lever, pos, lureRoot); break;
-                    case 'F':
-                        if (number == 5) bossTrap = MakeBossTrap(pos, new Vector2(17f, -11f), lureRoot);
-                        break;
+                    case 'F': chains.Add(pos); break;
+                    case 'U': Place(prefabs.phone, pos, lureRoot); impacts.Add(pos); break;
                     case 'M': mannequins.Add(Place(prefabs.mannequin, pos, lureRoot)); break;
                     case 'm': targets.Add(pos); break;
                     case 'P': player = Place(prefabs.player, pos, null); break;
@@ -790,6 +809,8 @@ public static class GameBuilder
                 }
             }
         }
+
+        AddWallEdges(rows, wallRoot, floorRoot);
 
         // Манекени їдуть до найближчої позначки "m"
         foreach (var m in mannequins)
@@ -804,12 +825,13 @@ public static class GameBuilder
         }
 
         // Є ключ чи важіль - вихід замкнений
-        bool hasLock = number == 5 || rows.Any(row => row.IndexOf('*') >= 0 || row.IndexOf('X') >= 0);
+        bool bossLevel = data.bossPoints.Length > 0;
+        bool hasLock = bossLevel || rows.Any(row => row.IndexOf('*') >= 0 || row.IndexOf('X') >= 0);
         if (exitGo != null && hasLock)
         {
             var exitComp = exitGo.GetComponent<LevelExit>();
             Set(exitComp, ("startsLocked", true));
-            if (number == 5) Set(exitComp, ("requiresKey", true));
+            if (bossLevel) Set(exitComp, ("requiresKey", true));
             PrefabUtility.RecordPrefabInstancePropertyModifications(exitComp);
         }
 
@@ -828,10 +850,21 @@ public static class GameBuilder
             PrefabUtility.RecordPrefabInstancePropertyModifications(ai);
         }
 
-        if (number == 5)
+        if (bossLevel)
         {
             var points = data.bossPoints.Where(p => p.Length > 0 && marks.ContainsKey(p[0])).Select(p => marks[p[0]]).ToArray();
-            if (points.Length == 0 || bossTrap == null) throw new InvalidOperationException("На фінальній карті потрібні boss: маршрут і F (ланцюг).");
+            // старі карти: один ланцюг і камінь над дзвоном H у центрі зали
+            if (impacts.Count == 0 && chains.Count > 0) impacts.Add(new Vector2(17f, -11f));
+            if (points.Length == 0 || chains.Count == 0) throw new InvalidOperationException("На карті з Ключником потрібні boss: маршрут, F (ланцюг) і U (дзвін під вантажем).");
+            // кожен ланцюг керує найближчим вільним вантажем
+            var traps = new List<BossTrap>();
+            var freeImpacts = new List<Vector2>(impacts);
+            foreach (var pair in chains.SelectMany(c => impacts.Select(u => (c, u))).OrderBy(t => (t.c - t.u).sqrMagnitude))
+            {
+                if (!freeImpacts.Contains(pair.u) || traps.Any(t => (Vector2)t.transform.position == pair.c)) continue;
+                freeImpacts.Remove(pair.u);
+                traps.Add(MakeBossTrap(pair.c, pair.u, lureRoot));
+            }
             var bossGo = Place(prefabs.skeleton, points[0], enemyRoot);
             bossGo.name = "Jailer";
             bossGo.transform.localScale = Vector3.one * 1.75f;
@@ -847,13 +880,25 @@ public static class GameBuilder
             key.SetActive(false);
             PrefabUtility.RecordPrefabInstancePropertyModifications(key);
             var jailer = bossGo.AddComponent<BossJailer>();
-            Set(jailer, ("droppedKey", key));
-            Set(bossTrap, ("boss", jailer));
+            Set(jailer, ("droppedKey", key), ("hitsNeeded", Mathf.Max(1, traps.Count)));
+            foreach (var trap in traps) Set(trap, ("boss", jailer));
             var belt = Child(bossGo, "KeyBelt", new Vector2(0.28f, -0.05f)).AddComponent<SpriteRenderer>();
             belt.sprite = S("Props/key.png");
             belt.sortingOrder = 100;
             belt.transform.localScale = Vector3.one * 0.5f;
             UseUnlit(belt);
+        }
+
+        // Місячні промені крізь ґрати в стелі
+        for (int i = 0; i < data.moons.Count; i++)
+        {
+            var pts = data.moons[i].Where(d => d.Length > 0 && marks.ContainsKey(d[0])).Select(d => marks[d[0]]).ToArray();
+            if (pts.Length < 2)
+            {
+                Debug.LogWarning($"{scenePath}: місячний промінь '{string.Join(" ", data.moons[i])}' не знайдено на карті");
+                continue;
+            }
+            MakeMoonBeam(level, pts[0], pts[1], i);
         }
 
         // Системи
@@ -890,6 +935,58 @@ public static class GameBuilder
             ("water", water), ("ceilingTexture", TS(theme, "ceiling")), ("fogColor", look.fog));
 
         EditorSceneManager.SaveScene(scene, scenePath);
+    }
+
+    /// <summary>
+    /// 2D: щоб було видно, де стіна, а де прохід. На верхній грані стіни з боку проходу - світла кромка,
+    /// на підлозі під стіною й поруч - м'яка тінь. У 3D ці спрайти не малюються (батьки Walls і Floor).
+    /// </summary>
+    static void AddWallEdges(string[] rows, Transform wallRoot, Transform floorRoot)
+    {
+        Sprite rimN = S("Environment/edge_rim_n.png"), rimW = S("Environment/edge_rim_w.png"), rimE = S("Environment/edge_rim_e.png");
+        Sprite shN = S("Environment/floor_shadow_n.png"), shW = S("Environment/floor_shadow_w.png"), shE = S("Environment/floor_shadow_e.png");
+        if (rimN == null || shN == null) return;
+        int h = rows.Length;
+        char Get(int x, int y) => y >= 0 && y < h && x >= 0 && x < rows[y].Length ? rows[y][x] : ' ';
+        bool Open(char c) => c != '#' && c != ' ' && c != 'E';
+        for (int y = 0; y < h; y++)
+        for (int x = 0; x < rows[y].Length; x++)
+        {
+            char c = rows[y][x];
+            var pos = new Vector2(x, -y);
+            if (c == '#')
+            {
+                if (Open(Get(x, y + 1))) continue;   // фасад стіни має власний верх
+                int order = y * 10 + 1;
+                if (Open(Get(x, y - 1))) Tile(wallRoot, rimN, pos, order, Vector2.zero);
+                if (Open(Get(x - 1, y))) Tile(wallRoot, rimW, pos, order, Vector2.zero);
+                if (Open(Get(x + 1, y))) Tile(wallRoot, rimE, pos, order, Vector2.zero);
+            }
+            else if (c != ' ' && c != 'E')
+            {
+                if (Get(x, y - 1) == '#') Tile(floorRoot, shN, pos, -9990, Vector2.zero);
+                if (Get(x - 1, y) == '#') Tile(floorRoot, shW, pos, -9990, Vector2.zero);
+                if (Get(x + 1, y) == '#') Tile(floorRoot, shE, pos, -9990, Vector2.zero);
+            }
+        }
+    }
+
+    static void MakeMoonBeam(Transform parent, Vector2 from, Vector2 to, int index)
+    {
+        var go = new GameObject("MoonBeam");
+        go.transform.SetParent(parent, false);
+        go.transform.position = from;
+        var disc = Child(go, "MoonDisc", Vector2.zero).AddComponent<SpriteRenderer>();
+        disc.sprite = S("Environment/moon_pool.png");
+        disc.color = new Color(0.72f, 0.84f, 1f, 0.2f);
+        disc.sortingOrder = -9500;
+        disc.transform.localScale = new Vector3(2.6f, 2.6f, 1f) / Mathf.Max(0.01f, disc.sprite != null ? disc.sprite.bounds.size.x : 1f);
+        UseUnlit(disc);
+        var light = Child(go, "Moonbeam", Vector2.zero);
+        AddLight(light, LightPoint, new Color(0.62f, 0.76f, 1f), 1.1f, 1.7f);
+        float length = Vector2.Distance(from, to);
+        Set(go.AddComponent<MoonBeam>(), ("from", from), ("to", to), ("radius", 1.3f),
+            ("travelTime", Mathf.Max(4f, length * 1.1f)), ("phase", index * 0.37f), ("disc", disc));
     }
 
     static BossTrap MakeBossTrap(Vector2 control, Vector2 impact, Transform parent)
@@ -1141,6 +1238,7 @@ public static class GameBuilder
         public string theme = "cellar";
         public readonly List<(bool spirit, string[] points)> enemies = new List<(bool, string[])>();
         public string[] bossPoints = new string[0];
+        public readonly List<string[]> moons = new List<string[]>();
         public string[] rows = new string[0];
 
         public static LevelData Parse(string text)
@@ -1169,6 +1267,7 @@ public static class GameBuilder
                 else if (key == "hint") d.hint = val;
                 else if (key == "theme") d.theme = val.ToLowerInvariant();
                 else if (key == "boss") d.bossPoints = val.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                else if (key == "moon") d.moons.Add(val.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
                 else if (key == "skeleton" || key == "guard" || key == "spirit")
                     d.enemies.Add((key == "spirit", val.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)));
             }

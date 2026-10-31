@@ -267,8 +267,10 @@ public class GameUI : MonoBehaviour
         {
             if (exit.RequiresKey)
             {
-                text = BossJailer.Instance != null && BossJailer.Instance.IsDefeated
-                    ? "Забери ключ Ключника" : "Заманюй Ключника під вантаж";
+                var boss = BossJailer.Instance;
+                text = boss != null && boss.IsDefeated ? "Забери ключ Ключника"
+                    : boss != null && boss.HitsNeeded > 1 ? $"Скинь вантаж на Ключника: {boss.Hits} з {boss.HitsNeeded}"
+                    : "Заманюй Ключника під вантаж";
                 icon = "icon_exit";
             }
             else

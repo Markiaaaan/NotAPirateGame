@@ -261,7 +261,7 @@ public class RetroView : MonoBehaviour
             string parent = sr.transform.parent != null ? sr.transform.parent.name : "";
             if (parent == "Floor" || parent == "Walls") continue;
             if (n.StartsWith("shelf_") || n.StartsWith("wall") || n.StartsWith("floor") || n.StartsWith("column") || n == "Exit" || n == "Alert"
-                || n == "SenseRing" || n == "TrapMark") continue;
+                || n == "SenseRing" || n == "TrapMark" || n == "MoonDisc") continue;
 
             var guard = sr.GetComponent<GuardAI>();
             if (guard != null)
@@ -389,6 +389,7 @@ public class RetroView : MonoBehaviour
         if (name == "Lantern") return 0.8f;
         if (name == "Aura") return 1.0f;
         if (name == "Glow") return 0.7f;
+        if (name == "Moonbeam") return 1.0f;   // місячне світло падає згори крізь ґрати
         return 1.2f;
     }
 
@@ -571,10 +572,10 @@ public class RetroView : MonoBehaviour
                 }
                 Tex ft = fc == ',' ? tCarpet : ((ci + cj) & 1) == 0 ? tFloorB : tFloorA;
                 Color32 floorColor = Sample(ft, fx - ci, fy - cj);
-                if (BossTrap.Instance != null)
+                for (int t = 0; t < BossTrap.All.Count; t++)
                 {
-                    float mark = BossTrap.Instance.FloorMark(fx - 0.5f, -fy + 0.5f);
-                    if (mark > 0f) floorColor = Color32.Lerp(floorColor, new Color32(255, 155, 35, 255), mark);
+                    float mark = BossTrap.All[t].FloorMark(fx - 0.5f, -fy + 0.5f);
+                    if (mark > 0f) { floorColor = Color32.Lerp(floorColor, new Color32(255, 155, 35, 255), mark); break; }
                 }
                 Put(x, y, floorColor, r, g, b, rd);
             }
