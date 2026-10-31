@@ -36,7 +36,7 @@ public class PlayerEnergy : MonoBehaviour
         if (Current >= maxEnergy) return;
         if (Time.time - lastSpendTime < regenDelay) return;
 
-        Current = Mathf.Min(maxEnergy, Current + regenPerSecond * Time.deltaTime);
+        Current = Mathf.Min(maxEnergy, Current + regenPerSecond * GameSettings.EnergyRegenMul * Time.deltaTime);
         OnChanged?.Invoke(Current, maxEnergy);
     }
 

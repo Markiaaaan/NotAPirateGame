@@ -2,29 +2,43 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Сторож. Ходить маршрутом, світить ліхтариком перед собою, йде перевіряти шум від приманок
-/// і женеться за привидом, якщо той став видимим у його полі зору.
+/// Ворог підземелля: скелет або злий дух (той самий скрипт, різні налаштування в префабах).
+///   Скелет несе ліхтар: у радіусі lanternRadius привида видно з усіх боків. Обходить річку.
+///   Дух ліхтаря не має, зате відчуває привида поруч (senseRadius) навіть у темряві й летить над водою.
+/// Обидва ходять маршрутом, ідуть перевіряти шум від приманок і женуться за привидом, якщо побачили.
 ///
 /// Стани: Патруль → (почув шум) Перевірка → (побачив) Гонитва → (загубив) Пошук → Патруль.
-/// Привид у темряві прозорий: сторож його бачить, лише коли той освітлений (ліхтариком, лампою).
+/// Привид у темряві прозорий: ворог його бачить, лише коли той освітлений (ліхтарем, смолоскипом).
+/// Швидкість, дальність зору й час упізнавання множаться на складність з меню.
+/// Клас лишився з назвою GuardAI, щоб не ламати старі префаби.
 /// </summary>
 public class GuardAI : MonoBehaviour
 {
     enum State { Patrol, Investigate, Chase, Search, Caught }
 
+    [Header("Тип")]
+    [Tooltip("Дух (для 3D-вигляду й анімації). Скелет - false")]
+    [SerializeField] bool isSpirit;
+    [Tooltip("Може ходити над підземною річкою (~)")]
+    [SerializeField] bool canCrossWater;
+    [Tooltip("Ліхтар: у цьому радіусі привид освітлений з усіх боків (0 = немає ліхтаря)")]
+    [SerializeField] float lanternRadius;
+    [Tooltip("Чуття: у цьому радіусі ворог помічає привида навіть у темряві (0 = немає)")]
+    [SerializeField] float senseRadius;
+
     [Header("Швидкість")]
-    [SerializeField] float walkSpeed = 2.2f;
+    [SerializeField] float walkSpeed = 2.3f;
     [SerializeField] float investigateSpeed = 3f;
-    [SerializeField] float chaseSpeed = 3.5f;
+    [SerializeField] float chaseSpeed = 3.4f;
     [SerializeField] float turnSpeed = 300f;
 
     [Header("Зір")]
-    [SerializeField] float viewDistance = 6.5f;
-    [SerializeField] float viewAngle = 70f;
-    [Tooltip("На цій відстані ліхтарик проявляє привида")]
-    [SerializeField] float flashlightDistance = 5f;
+    [SerializeField] float viewDistance = 7f;
+    [SerializeField] float viewAngle = 80f;
+    [Tooltip("На цій відстані погляд (конус) сам проявляє привида (0 = не проявляє)")]
+    [SerializeField] float flashlightDistance;
     [Tooltip("Скільки секунд треба дивитися на привида, щоб упізнати його")]
-    [SerializeField] float noticeTime = 0.8f;
+    [SerializeField] float noticeTime = 0.6f;
     [SerializeField] float loseSightTime = 2f;
     [SerializeField] float catchDistance = 0.65f;
 
@@ -40,9 +54,10 @@ public class GuardAI : MonoBehaviour
     [SerializeField] SpriteRenderer body;
     [SerializeField] Sprite[] walkDown = new Sprite[0];
     [SerializeField] Sprite[] walkUp = new Sprite[0];
-    [Tooltip("Кадри, де сторож дивиться вправо. Вліво віддзеркалюються.")]
+    [Tooltip("Кадри, де ворог дивиться вправо. Вліво віддзеркалюються.")]
     [SerializeField] Sprite[] walkSide = new Sprite[0];
     [SerializeField] float animFps = 8f;
+    [Tooltip("Ліхтар чи аура: світло, яке повертається туди, куди дивиться ворог")]
     [SerializeField] Transform flashlight;
     [SerializeField] SpriteRenderer alertIcon;
     [SerializeField] Sprite exclaimSprite;
@@ -81,6 +96,45 @@ public class GuardAI : MonoBehaviour
     float Alert => SuspicionMeter.Level;
     float SpeedMul => 1f + 0.25f * Alert;
 
+    public Vector2 Facing => facing;
+    public bool IsSpirit => isSpirit;
+    /// <summary>Женеться за привидом (для музики погоні).</summary>
+    public bool IsChasing => state == State.Chase;
+
+    /// <summary>Значок над головою ("!" чи "?"), або null.</summary>
+    public Sprite AlertSprite => alertIcon != null && alertIcon.enabled ? alertIcon.sprite : null;
+
+    /// <summary>
+    /// Кадр ворога для 3D-вигляду: спереду, ззаду чи збоку залежно від того,
+    /// звідки на нього дивиться глядач (точка viewer у світових координатах).
+    /// </summary>
+    public Sprite ViewSprite(Vector2 viewer, out bool flip)
+    {
+        flip = false;
+        Vector2 toViewer = viewer - (Vector2)transform.position;
+        if (toViewer.sqrMagnitude < 0.0001f) toViewer = Vector2.down;
+        toViewer.Normalize();
+
+        float dot = Vector2.Dot(facing, toViewer);
+        Sprite[] set;
+        if (dot > 0.7f) set = walkDown;          // дивиться на нас
+        else if (dot < -0.7f) set = walkUp;      // стоїть спиною
+        else
+        {
+            set = walkSide;
+            // праворуч від глядача, коли той дивиться на ворога
+            Vector2 viewDir = -toViewer;
+            Vector2 viewerRight = new Vector2(viewDir.y, -viewDir.x);
+            flip = Vector2.Dot(facing, viewerRight) < 0f;
+        }
+        if (set == null || set.Length == 0) return body != null ? body.sprite : null;
+        int frame = Animating ? (int)(animTime * animFps) % set.Length : 0;
+        return set[frame];
+    }
+
+    // дух постійно "майорить", скелет рухає ногами лише під час ходьби
+    bool Animating => moving || isSpirit;
+
     /// <summary>Задати маршрут (точки у світових координатах).</summary>
     public void Configure(Vector2[] points)
     {
@@ -89,6 +143,17 @@ public class GuardAI : MonoBehaviour
 
     void OnEnable() => LureEvents.OnLure += HandleLure;
     void OnDisable() => LureEvents.OnLure -= HandleLure;
+
+    void Awake()
+    {
+        // складність з меню
+        float sp = GameSettings.EnemySpeedMul;
+        walkSpeed *= sp;
+        investigateSpeed *= sp;
+        chaseSpeed *= sp;
+        viewDistance *= GameSettings.ViewMul;
+        noticeTime *= GameSettings.NoticeTimeMul;
+    }
 
     void Start()
     {
@@ -145,15 +210,23 @@ public class GuardAI : MonoBehaviour
         Vector2 to = gp - pos;
         float dist = to.magnitude;
         float range = viewDistance * (1f + 0.3f * Alert);
+        float reach = Mathf.Max(range, Mathf.Max(lanternRadius, senseRadius * (1f + 0.3f * Alert)));
+        bool los = dist <= reach && grid.HasLineOfSight(pos, gp);
 
-        bool inCone = dist <= range
-                      && (dist < 0.9f || Vector2.Angle(facing, to) <= viewAngle * 0.5f)
-                      && grid.HasLineOfSight(pos, gp);
+        bool inCone = los && dist <= range
+                      && (dist < 0.9f || Vector2.Angle(facing, to) <= viewAngle * 0.5f);
 
-        // ліхтарик проявляє привида
+        // погляд у конусі проявляє привида
         if (inCone && dist <= flashlightDistance) ghost.Expose(1f);
 
-        bool sees = (inCone && ghost.IsVisible) || dist < 0.8f;
+        // ліхтар скелета світить на всі боки (край кола слабший)
+        if (los && lanternRadius > 0f && dist <= lanternRadius)
+            ghost.Expose(Mathf.Clamp01((lanternRadius - dist) / (lanternRadius * 0.35f)));
+
+        // дух відчуває привида поруч навіть у темряві
+        bool sensed = los && senseRadius > 0f && dist <= senseRadius * (1f + 0.3f * Alert);
+
+        bool sees = (inCone && ghost.IsVisible) || sensed || dist < 0.8f;
 
         if (state == State.Chase)
         {
@@ -336,7 +409,7 @@ public class GuardAI : MonoBehaviour
     void SetPathTo(Vector2 world)
     {
         pathIndex = 0;
-        if (grid == null || !grid.FindPath(transform.position, world, path)) path.Clear();
+        if (grid == null || !grid.FindPath(transform.position, world, path, canCrossWater)) path.Clear();
     }
 
     /// <summary>Іде по шляху. Повертає true, коли дійшов до кінця.</summary>
@@ -417,14 +490,32 @@ public class GuardAI : MonoBehaviour
 
         if (set == null || set.Length == 0) return;
 
-        animTime = moving ? animTime + dt : 0f;
-        int frame = moving ? (int)(animTime * animFps) % set.Length : 0;
+        animTime = Animating ? animTime + dt : 0f;
+        int frame = Animating ? (int)(animTime * animFps) % set.Length : 0;
         body.sprite = set[frame];
         body.flipX = flip;
+
+        if (isSpirit)
+        {
+            // дух трохи мерехтить
+            var c = body.color;
+            c.a = 0.78f + 0.17f * Mathf.Sin(Time.time * 3.1f + transform.position.x);
+            body.color = c;
+        }
     }
 
     void OnDrawGizmosSelected()
     {
+        if (lanternRadius > 0f)
+        {
+            Gizmos.color = new Color(1f, 0.7f, 0.3f, 0.5f);
+            Gizmos.DrawWireSphere(transform.position, lanternRadius);
+        }
+        if (senseRadius > 0f)
+        {
+            Gizmos.color = new Color(0.7f, 0.4f, 1f, 0.5f);
+            Gizmos.DrawWireSphere(transform.position, senseRadius);
+        }
         Gizmos.color = new Color(1f, 0.9f, 0.3f, 0.6f);
         for (int i = 0; i < patrolPoints.Length; i++)
         {

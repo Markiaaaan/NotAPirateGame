@@ -37,7 +37,8 @@ public abstract class Interactable : MonoBehaviour
     {
         if (!IsAvailable) return false;
 
-        if (!who.Energy.TrySpend(energyCost))
+        // енергію прибрали з гри: приманки нічого не коштують (energyCost = 0)
+        if (energyCost > 0f && who.Energy != null && !who.Energy.TrySpend(energyCost))
         {
             who.ReportNotEnoughEnergy(this);
             return false;

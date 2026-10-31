@@ -1,0 +1,9 @@
+Pryvyd Pixel (PryvydPixel.ttf)
+
+Шрифт гри "Привид підземелля". Зроблений з GNU Unifont 16 px: кожен гліф потовщено на 1 піксель
+і зроблено пропорційні відступи (скрипт генерації - у розробників гри).
+
+GNU Unifont (c) Roman Czyborra, Paul Hardy, Qianqian Fang, Andrew Miller, Johnnie Weaver,
+David Corbett, Nils Moskopp, Rebecca Bettencourt та інші.
+Unifont поширюється під SIL Open Font License 1.1 (а також GNU GPL 2+ з винятком для вбудовування шрифтів).
+Цей похідний шрифт поширюється на тих самих умовах (SIL OFL 1.1): https://openfontlicense.org

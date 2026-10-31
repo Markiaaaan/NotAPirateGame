@@ -21,5 +21,6 @@ public class PixelArtImporter : AssetPostprocessor
         importer.spritePixelsPerUnit = 32f;
         importer.mipmapEnabled = false;
         importer.alphaIsTransparency = true;
+        importer.isReadable = true;
     }
 }
