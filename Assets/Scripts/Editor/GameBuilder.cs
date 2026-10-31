@@ -170,7 +170,7 @@ public static class GameBuilder
                 string path = $"{ScenesFolder}/Level_{i + 1:00}.unity";
                 bool last = i == levels.Count - 1;
                 BuildLevelScene(levels[i], i + 1, prefabs, path,
-                    last ? "ФІНАЛ" : $"РІВЕНЬ {i + 2}", last ? "Нагору, до світанку" : levels[i + 1].name);
+                    last ? "ФІНАЛ" : $"РІВЕНЬ {i + 2}", last ? "Нагору, до нічного міста" : levels[i + 1].name);
                 scenes.Add(path);
                 if (i == 3 && levels.Count > 4)
                 {
