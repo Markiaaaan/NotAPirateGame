@@ -46,6 +46,13 @@ public class GuardAI : MonoBehaviour
     [SerializeField] float waitAtPoint = 1.2f;
     [SerializeField] float searchTime = 4f;
     [SerializeField] float lookAroundAngle = 70f;
+    // ЗМІНЕНО: нові налаштування
+    [Tooltip("Скільки додаткових місць ворог перевіряє навколо, коли загубив привида")]
+    [SerializeField] int extraSearchPoints = 2;
+    [Tooltip("Радіус, у якому вибираються додаткові місця пошуку")]
+    [SerializeField] float searchSpread = 3f;
+    [Tooltip("Шум чути, якщо шлях до нього не довший за гучність, помножену на це число")]
+    [SerializeField] float lurePathFactor = 1.6f;
 
     [Header("Маршрут (заповнює збирач рівнів)")]
     [SerializeField] Vector2[] patrolPoints = new Vector2[0];
@@ -73,6 +80,9 @@ public class GuardAI : MonoBehaviour
     Transform ghostTransform;
 
     readonly List<Vector2> path = new List<Vector2>();
+    // ЗМІНЕНО: тимчасовий шлях для підрахунку відстані до шуму й черга місць пошуку
+    readonly List<Vector2> tmpPath = new List<Vector2>();
+    readonly Queue<Vector2> searchQueue = new Queue<Vector2>();
     int pathIndex;
     bool moving;
     bool arrived;
@@ -152,7 +162,8 @@ public class GuardAI : MonoBehaviour
         investigateSpeed *= sp;
         chaseSpeed *= sp;
         viewDistance *= GameSettings.ViewMul;
-        noticeTime *= GameSettings.NoticeTimeMul;
+        // ЗМІНЕНО: захист від ділення на нуль у Vision
+        noticeTime = Mathf.Max(0.05f, noticeTime * GameSettings.NoticeTimeMul);
     }
 
     void Start()
@@ -226,7 +237,8 @@ public class GuardAI : MonoBehaviour
         // дух відчуває привида поруч навіть у темряві
         bool sensed = los && senseRadius > 0f && dist <= senseRadius * (1f + 0.3f * Alert);
 
-        bool sees = (inCone && ghost.IsVisible) || sensed || dist < 0.8f;
+        // ЗМІНЕНО: впритул ворог помічає привида лише без стіни між ними
+        bool sees = (inCone && ghost.IsVisible) || sensed || (los && dist < 0.8f);
 
         if (state == State.Chase)
         {
@@ -240,7 +252,8 @@ public class GuardAI : MonoBehaviour
                 lostTimer += dt;
                 if (lostTimer >= loseSightTime) BeginSearch(lastSeenPos);
             }
-            if (dist <= catchDistance) Catch();
+            // ЗМІНЕНО: не ловить крізь стіну
+            if (dist <= catchDistance && los) Catch();
             return;
         }
 
@@ -248,7 +261,8 @@ public class GuardAI : MonoBehaviour
         {
             notice += dt / (noticeTime / (1f + Alert));
             lookTarget = to.normalized;
-            if (notice >= 1f || dist < 0.8f) BeginChase(gp);
+            // ЗМІНЕНО: dist < 0.8f рахується лише з прямою видимістю (los вже входить у sees)
+            if (notice >= 1f || (los && dist < 0.8f)) BeginChase(gp);
         }
         else
         {
@@ -265,6 +279,7 @@ public class GuardAI : MonoBehaviour
         state = State.Patrol;
         notice = 0f;
         waitTimer = 0f;
+        searchQueue.Clear();
         if (patrolPoints.Length == 0) return;
         patrolIndex = NearestPatrolPoint();
         SetPathTo(patrolPoints[patrolIndex]);
@@ -301,6 +316,8 @@ public class GuardAI : MonoBehaviour
     {
         if (state == State.Chase || state == State.Caught) return;
         if (Vector2.Distance(transform.position, s.Position) > s.Loudness) return;
+        // ЗМІНЕНО: шум за стіною не чути, якщо йти до нього далеко (або шляху немає)
+        if (PathLengthTo(s.Position) > s.Loudness * lurePathFactor) return;
 
         state = State.Investigate;
         notice = 0f;
@@ -310,6 +327,22 @@ public class GuardAI : MonoBehaviour
         questionTimer = 1.5f;
         SetPathTo(investigatePos);
         GameAudio.Play(huhClip, 0.8f);
+    }
+
+    /// <summary>Довжина шляху до точки по сітці (float.MaxValue, якщо дійти не можна).</summary>
+    float PathLengthTo(Vector2 world)
+    {
+        if (grid == null || !grid.FindPath(transform.position, world, tmpPath, canCrossWater))
+            return float.MaxValue;
+
+        float len = 0f;
+        Vector2 prev = transform.position;
+        for (int i = 0; i < tmpPath.Count; i++)
+        {
+            len += Vector2.Distance(prev, tmpPath[i]);
+            prev = tmpPath[i];
+        }
+        return len;
     }
 
     void UpdateInvestigate(float dt)
@@ -350,14 +383,18 @@ public class GuardAI : MonoBehaviour
 
         bool done = FollowPath(chaseSpeed, dt);
 
-        // останні сантиметри біжить прямо на привида
+        // ЗМІНЕНО: останні сантиметри біжить прямо на привида, але лише якщо по прямій
+        // можна пройти (немає стіни, полиці чи води, яку цей ворог не перетинає)
         if (done && ghostTransform != null && lostTimer <= 0f)
         {
             Vector2 pos = transform.position;
             Vector2 gp = ghostTransform.position;
-            Vector2 next = Vector2.MoveTowards(pos, gp, chaseSpeed * SpeedMul * dt);
-            transform.position = new Vector3(next.x, next.y, transform.position.z);
-            moving = true;
+            if (Vector2.Distance(pos, gp) < 2f && grid != null && grid.CanWalkStraight(pos, gp, canCrossWater))
+            {
+                Vector2 next = Vector2.MoveTowards(pos, gp, chaseSpeed * SpeedMul * dt);
+                transform.position = new Vector3(next.x, next.y, transform.position.z);
+                moving = true;
+            }
         }
 
         if (ghostTransform != null && lostTimer <= 0f)
@@ -373,6 +410,18 @@ public class GuardAI : MonoBehaviour
         stateTimer = searchTime;
         arrived = false;
         questionTimer = 2f;
+
+        // ЗМІНЕНО: окрім останньої точки, де бачив привида, перевіряє ще кілька місць поруч
+        searchQueue.Clear();
+        if (grid != null)
+        {
+            for (int i = 0; i < extraSearchPoints; i++)
+            {
+                Vector2 cand = where + Random.insideUnitCircle * searchSpread;
+                if (grid.IsWalkable(LevelGrid.WorldToCell(cand), canCrossWater))
+                    searchQueue.Enqueue(cand);
+            }
+        }
         SetPathTo(where);
     }
 
@@ -388,7 +437,17 @@ public class GuardAI : MonoBehaviour
         }
         LookAround(dt);
         stateTimer -= dt;
-        if (stateTimer <= 0f) BeginPatrol();
+        if (stateTimer <= 0f)
+        {
+            // ЗМІНЕНО: є ще місця - йде в наступне, інакше повертається на патруль
+            if (searchQueue.Count > 0)
+            {
+                SetPathTo(searchQueue.Dequeue());
+                arrived = false;
+                stateTimer = searchTime * 0.5f;
+            }
+            else BeginPatrol();
+        }
     }
 
     void Catch()
