@@ -386,11 +386,11 @@ public class MainMenu : MonoBehaviour
         for (int i = 0; i < thumbFrames.Count; i++)
         {
             if (!RectTransformUtility.RectangleContainsScreenPoint(thumbFrames[i].rectTransform, mp, null)) continue;
-            if (i < SkinCount && i != GameSettings.Skin)
+         if (i < SkinCount)
             {
                 GameSettings.Skin = i;
-                PlayMove();
-                Refresh();
+                PlaySelect();
+                ShowPage(Page.Main, 1);   // вибрали скін, одразу назад у меню
             }
             return;
         }
