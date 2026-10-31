@@ -118,6 +118,6 @@
 
 ## Команда
 
-Гру зробила команда з шести людей за Halloween Game Jam (31 жовтня 2026). Хто що робив, видно в [історії комітів](https://github.com/Markiaaaan/NotAPirateGame/graphs/contributors).
+Гру зробила команда ОПІ "BooBooBooShahur" з шести людей на Ігровий хакатон 7.0 (30 жовтня 2026).
 
 Піксельний шрифт зроблено на основі [GNU Unifont](https://unifoundry.com/unifont/) (SIL Open Font License 1.1).
