@@ -86,6 +86,24 @@ public class LevelGrid : MonoBehaviour
         return true;
     }
 
+    // ЗМІНЕНО: новий метод. Видимість (HasLineOfSight) не бачить воду, а ходьба - бачить.
+    /// <summary>
+    /// Чи можна пройти по прямій від from до to, не зачепивши стіну, полицю чи воду
+    /// (воду - якщо allowWater = false). Клітинка призначення не перевіряється.
+    /// </summary>
+    public bool CanWalkStraight(Vector2 from, Vector2 to, bool allowWater)
+    {
+        Vector2Int a = WorldToCell(from), b = WorldToCell(to);
+        int steps = Mathf.CeilToInt(Vector2.Distance(from, to) / 0.2f);
+        for (int i = 1; i < steps; i++)
+        {
+            Vector2Int c = WorldToCell(Vector2.Lerp(from, to, i / (float)steps));
+            if (c == a || c == b) continue;
+            if (!IsWalkable(c, allowWater)) return false;
+        }
+        return true;
+    }
+
     /// <summary>Найближча клітинка, по якій можна ходити.</summary>
     public Vector2Int NearestWalkable(Vector2Int c) => NearestWalkable(c, false);
 
