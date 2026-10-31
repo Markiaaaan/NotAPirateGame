@@ -8,7 +8,7 @@ using UnityEngine;
 /// </summary>
 public static class GhostSkinLibrary
 {
-    public static readonly string[] Names = { "Класичний", "Кучерявий", "Рокер", "Розвідник", "Стиляга", "Ліброн", "Король" };
+    public static readonly string[] Names = { "Класичний", "Кучерявий", "Рокер", "Розвідник", "Стиляга", "Ле Брон", "Король" };
     public static readonly string[] Folders = { "", "curly/", "rocker/", "scout/", "hanna/", "lebron/", "king/" };
     static readonly Dictionary<string, Sprite[]> animationCache = new Dictionary<string, Sprite[]>();
     static readonly Sprite[] noFrames = new Sprite[0];
