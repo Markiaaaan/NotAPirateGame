@@ -7,7 +7,7 @@ using UnityEngine;
 ///     Ходить маршрутом, іде перевіряти шум від приманок і женеться за привидом, якщо побачив.
 ///   Злий дух нічого не бачить, зате відчуває РУХ: якщо привид рухається в радіусі senseRadius
 ///     (навіть за стіною), дух його помічає. Привид, що завмер, для духа невидимий.
-///     Дух літає крізь стіни й над водою. Коли женеться, а привид завмер - кружляє навколо й шукає.
+///     Дух літає крізь стіни й над водою. Після появи знака питання завмирання вже не рятує.
 ///
 /// Стани: Патруль → (почув шум) Перевірка → (побачив) Гонитва → (загубив) Пошук → Патруль.
 /// Привид у темряві прозорий: ворог його бачить, лише коли той освітлений (ліхтарем, смолоскипом).
@@ -88,6 +88,9 @@ public class GuardAI : MonoBehaviour
     LevelGrid grid;
     GhostVisibility ghost;
     Transform ghostTransform;
+    FirstPersonMovement listenerMovement;
+    AudioLowPassFilter whisperFilter;
+    LeverLure[] levers = new LeverLure[0];
 
     readonly List<Vector2> path = new List<Vector2>();
     // ЗМІНЕНО: тимчасовий шлях для підрахунку відстані до шуму й черга місць пошуку
@@ -118,14 +121,24 @@ public class GuardAI : MonoBehaviour
 
     // злий дух
     Vector2 lastGhostPos;
-    float ghostSpeed, stillTimer, circleAngle, driftTime;
-    bool ghostInSense;
+    float ghostSpeed, stillTimer, driftTime;
+    bool ghostInSense, spiritLocked;
+    public bool SpiritHasNoticed => isSpirit && (spiritLocked || state == State.Chase);
     SpriteRenderer senseRing;
 
     public Vector2 Facing => facing;
     public bool IsSpirit => isSpirit;
     /// <summary>Женеться за привидом (для музики погоні).</summary>
     public bool IsChasing => state == State.Chase;
+
+    public void Retire()
+    {
+        state = State.Caught;
+        moving = false;
+        notice = 0f;
+        if (alertIcon != null) alertIcon.enabled = false;
+        enabled = false;
+    }
     /// <summary>Дух: привид у його радіусі чуття (для попередження "ЗАВМРИ!").</summary>
     public bool GhostInSense => isSpirit && ghostInSense && state != State.Caught;
     /// <summary>Наскільки ворог уже помітив привида (0..1).</summary>
@@ -133,7 +146,7 @@ public class GuardAI : MonoBehaviour
     /// <summary>Привид зараз рухається (рахує кожен дух сам, щоб не залежати від гравця).</summary>
     bool GhostMoving => ghostSpeed > moveThreshold;
     /// <summary>Радіус чуття духа зараз (росте, коли підземелля насторожі).</summary>
-    public float SenseRange => senseRadius * (1f + 0.3f * Alert);
+    public float SenseRange => senseRadius * (1f + 0.1f * Alert);
     public float LanternRadius => lanternRadius;
 
     /// <summary>Значок над головою ("!" чи "?"), або null.</summary>
@@ -186,6 +199,7 @@ public class GuardAI : MonoBehaviour
         walkSpeed *= sp;
         investigateSpeed *= sp;
         chaseSpeed *= sp;
+        if (GameSettings.FirstPerson) chaseSpeed *= isSpirit ? 0.88f : 0.97f;
         viewDistance *= GameSettings.ViewMul;
         // ЗМІНЕНО: захист від ділення на нуль у Vision
         noticeTime = Mathf.Max(0.05f, noticeTime * GameSettings.NoticeTimeMul);
@@ -194,8 +208,26 @@ public class GuardAI : MonoBehaviour
     void Start()
     {
         grid = LevelGrid.Instance;
+        levers = FindObjectsByType<LeverLure>(FindObjectsInactive.Exclude);
+        // Початкова позиція також не має перекривати підхід до важеля.
+        if (grid != null && !PatrolCellAllowed(LevelGrid.WorldToCell(transform.position)))
+        {
+            Vector2 best = transform.position;
+            float distance = float.MaxValue;
+            for (int y = 0; y < grid.Height; y++)
+            for (int x = 0; x < grid.Width; x++)
+            {
+                var cell = new Vector2Int(x, y);
+                if (!grid.IsWalkable(cell, canCrossWater) || !PatrolCellAllowed(cell)) continue;
+                Vector2 candidate = LevelGrid.CellToWorld(cell);
+                float d = (candidate - (Vector2)transform.position).sqrMagnitude;
+                if (d < distance) { distance = d; best = candidate; }
+            }
+            SetPos(best);
+        }
         ghost = FindAnyObjectByType<GhostVisibility>();
         if (ghost != null) ghostTransform = ghost.transform;
+        if (ghostTransform != null) listenerMovement = ghostTransform.GetComponent<FirstPersonMovement>();
         if (body == null) body = GetComponent<SpriteRenderer>();
         if (GameManager.Instance != null) GameManager.Instance.OnGameOver += HandleGameOver;
         if (isSpirit) SetupSpirit();
@@ -244,8 +276,11 @@ public class GuardAI : MonoBehaviour
 
     // ---------------- Зір ----------------
 
+    float noiseFocusUntil;
+
     void Vision(float dt)
     {
+        if (Time.time < noiseFocusUntil && state == State.Investigate) return;
         if (ghostTransform == null || grid == null) return;
 
         Vector2 pos = transform.position;
@@ -329,6 +364,12 @@ public class GuardAI : MonoBehaviour
         {
             whisper.loop = true;
             whisper.spatialBlend = 0f;
+            if (GameSettings.FirstPerson)
+            {
+                whisperFilter = whisper.GetComponent<AudioLowPassFilter>();
+                if (whisperFilter == null) whisperFilter = whisper.gameObject.AddComponent<AudioLowPassFilter>();
+                whisperFilter.cutoffFrequency = 12000f;
+            }
             whisper.volume = 0f;
             if (whisper.clip != null) whisper.Play();
         }
@@ -359,68 +400,52 @@ public class GuardAI : MonoBehaviour
 
     void SpiritUpdate(float dt)
     {
-        if (ghostTransform == null) return;
+        if (ghostTransform == null || dt <= 0f) return;
         Vector2 pos = transform.position;
         Vector2 gp = ghostTransform.position;
-
-        // швидкість привида (лише переміщення: поворот камери в 3D не рахується)
-        float sp = dt > 0f ? Vector2.Distance(gp, lastGhostPos) / dt : 0f;
-        ghostSpeed = Mathf.Lerp(ghostSpeed, sp, 1f - Mathf.Exp(-dt * 12f));
+        // Без згладжування: зупинка одразу робить непоміченого гравця нечутним.
+        ghostSpeed = Vector2.Distance(gp, lastGhostPos) / dt;
         lastGhostPos = gp;
 
         float dist = Vector2.Distance(pos, gp);
         ghostInSense = dist <= SenseRange;
-        bool feels = ghostInSense && GhostMoving;
+        bool throughWall = grid != null && !grid.HasLineOfSight(pos, gp);
+        bool inSense = ghostInSense && (!throughWall || dist <= SenseRange * 0.55f);
+        bool feels = inSense && (GhostMoving || spiritLocked);
 
-        // дотик - спіймав, навіть якщо привид завмер
-        if (dist <= catchDistance) { Catch(); return; }
-
+        // Непоміченого нерухомого гравця дух проходить наскрізь.
+        if (state == State.Chase && dist <= catchDistance && !throughWall) { Catch(); return; }
         if (state == State.Chase)
         {
-            if (GhostMoving && dist <= SenseRange * 2f)
+            // Після виявлення завмирання більше не скидає погоню.
+            bool tracks = dist <= SenseRange * 1.15f && (!throughWall || dist <= SenseRange * 0.55f);
+            if (tracks)
             {
                 stillTimer = 0f;
                 lastSeenPos = gp;
-                Vector2 to = gp - pos;
-                lookTarget = to.normalized;
-                SetPos(Vector2.MoveTowards(pos, gp, chaseSpeed * SpeedMul * dt));
-                moving = true;
             }
-            else
-            {
-                // привид завмер: дух кружляє навколо місця, де востаннє відчув рух
-                // (коло починається з того боку, де дух зараз, щоб не пролетіти крізь привида)
-                if (stillTimer <= 0f) circleAngle = Mathf.Atan2(pos.y - lastSeenPos.y, pos.x - lastSeenPos.x);
-                stillTimer += dt;
-                circleAngle += dt * 1.1f;
-                Vector2 around = lastSeenPos + new Vector2(Mathf.Cos(circleAngle), Mathf.Sin(circleAngle)) * 1.7f;
-                Vector2 to = around - pos;
-                if (to.sqrMagnitude > 0.001f) lookTarget = to.normalized;
-                SetPos(Vector2.MoveTowards(pos, around, investigateSpeed * 0.6f * dt));
-                moving = true;
-                if (stillTimer >= spiritLoseTime) BeginSearch(lastSeenPos);
-            }
+            else stillTimer += dt;
+            Vector2 to = lastSeenPos - pos;
+            if (to.sqrMagnitude > 0.001f) lookTarget = to.normalized;
+            SetPos(Vector2.MoveTowards(pos, lastSeenPos, chaseSpeed * SpeedMul * dt));
+            moving = to.sqrMagnitude > 0.001f;
+            if (stillTimer >= spiritLoseTime) BeginSearch(lastSeenPos);
             return;
         }
 
         if (feels)
         {
-            // рух відчувається тим швидше, що ближче привид
-            float closeness = 1f + (1f - dist / Mathf.Max(0.1f, SenseRange));
-            notice += dt / noticeTime * closeness * (1f + Alert);
+            notice += dt / noticeTime * (1f + Alert);
+            if (notice > 0.05f) spiritLocked = true;
             lookTarget = (gp - pos).normalized;
-            if (notice >= 1f)
-            {
-                circleAngle = Mathf.Atan2(pos.y - gp.y, pos.x - gp.x);
-                BeginChase(gp);
-                return;
-            }
+            if (notice >= 1f) { BeginChase(gp); return; }
         }
-        else notice = Mathf.Max(0f, notice - dt * 0.6f);
-
-        // поки щось відчуває - зависає на місці, а не летить далі маршрутом
+        else
+        {
+            notice = Mathf.Max(0f, notice - dt * 0.6f);
+            if (notice <= 0.05f) spiritLocked = false;
+        }
         if (Noticing) { moving = false; return; }
-
         switch (state)
         {
             case State.Patrol: UpdatePatrol(dt); break;
@@ -451,6 +476,18 @@ public class GuardAI : MonoBehaviour
             float want = (0.15f + 0.85f * k) * k * GameSettings.SfxVolume * (state == State.Chase ? 1.2f : 0.9f);
             if (PauseMenu.IsPaused) want = 0f;
             whisper.volume = Mathf.MoveTowards(whisper.volume, want, dt * 2f);
+            // Віртуальний стереозвук у площині рівня: слухач повертається разом із гравцем.
+            if (GameSettings.FirstPerson && listenerMovement != null)
+            {
+                Vector2 forward = listenerMovement.Forward;
+                Vector2 right = new Vector2(forward.y, -forward.x);
+                Vector2 direction = ((Vector2)transform.position - (Vector2)ghostTransform.position).normalized;
+                whisper.panStereo = Vector2.Dot(direction, right) * 0.85f;
+                if (whisperFilter != null)
+                    whisperFilter.cutoffFrequency = Mathf.Lerp(12000f, 2200f,
+                        Mathf.Clamp01(-Vector2.Dot(direction, forward)));
+            }
+            else whisper.panStereo = 0f;
         }
     }
 
@@ -459,6 +496,7 @@ public class GuardAI : MonoBehaviour
     void BeginPatrol()
     {
         state = State.Patrol;
+        spiritLocked = false;
         notice = 0f;
         waitTimer = 0f;
         searchQueue.Clear();
@@ -494,15 +532,18 @@ public class GuardAI : MonoBehaviour
         if (FollowPath(walkSpeed, dt)) StartLookAround(Mathf.Max(0.1f, waitAtPoint));
     }
 
-    void HandleLure(LureSignal s)
+    void HandleLure(LureSignal s) => InvestigateNoise(s);
+
+    public void InvestigateNoise(LureSignal s, bool interruptChase = false, float focusSeconds = 0f)
     {
-        if (state == State.Chase || state == State.Caught) return;
+        if ((!interruptChase && state == State.Chase) || state == State.Caught) return;
         if (Vector2.Distance(transform.position, s.Position) > s.Loudness) return;
         // ЗМІНЕНО: шум за стіною не чути, якщо йти до нього далеко (або шляху немає).
         // Дух летить крізь стіни, тож для нього важить лише відстань.
         if (!isSpirit && PathLengthTo(s.Position) > s.Loudness * lurePathFactor) return;
 
         state = State.Investigate;
+        noiseFocusUntil = Mathf.Max(noiseFocusUntil, Time.time + Mathf.Max(0f, focusSeconds));
         notice = 0f;
         arrived = false;
         investigatePos = s.Position;
@@ -551,6 +592,7 @@ public class GuardAI : MonoBehaviour
         lostTimer = 0f;
         repathTimer = 0f;
         lastSeenPos = ghostPos;
+        if (isSpirit) { spiritLocked = true; stillTimer = 0f; }
         GameAudio.Play(alertClip);
         if (SuspicionMeter.Instance != null) SuspicionMeter.Instance.Add(0.35f);
     }
@@ -590,6 +632,8 @@ public class GuardAI : MonoBehaviour
     void BeginSearch(Vector2 where)
     {
         state = State.Search;
+        spiritLocked = false;
+        notice = 0f;
         stateTimer = searchTime;
         arrived = false;
         questionTimer = 2f;
@@ -651,6 +695,12 @@ public class GuardAI : MonoBehaviour
     void SetPathTo(Vector2 world)
     {
         pathIndex = 0;
+        if (state == State.Patrol && grid != null)
+        {
+            if (!grid.FindPatrolPath(transform.position, world, path, canCrossWater, PatrolCellAllowed))
+                path.Clear();
+            return;
+        }
         if (isSpirit)
         {
             // дух летить навпростець, крізь стіни
@@ -660,6 +710,14 @@ public class GuardAI : MonoBehaviour
         }
         // ЗМІНЕНО: якщо ціль недосяжна, іде до найближчої досяжної точки
         if (grid == null || !grid.FindPathToward(transform.position, world, path, canCrossWater)) path.Clear();
+    }
+
+    bool PatrolCellAllowed(Vector2Int cell)
+    {
+        Vector2 point = LevelGrid.CellToWorld(cell);
+        foreach (var lever in levers)
+            if (lever != null && Vector2.Distance(point, lever.transform.position) < 3.5f) return false;
+        return true;
     }
 
     /// <summary>Іде по шляху. Повертає true, коли дійшов до кінця.</summary>

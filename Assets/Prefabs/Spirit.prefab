@@ -125,17 +125,17 @@ MonoBehaviour:
   isSpirit: 1
   canCrossWater: 1
   lanternRadius: 0
-  senseRadius: 3.2
-  walkSpeed: 1.5
-  investigateSpeed: 2.4
-  chaseSpeed: 2.9
+  senseRadius: 2.8
+  walkSpeed: 1.2
+  investigateSpeed: 3
+  chaseSpeed: 3.1
   turnSpeed: 300
   viewDistance: 0
   viewAngle: 100
   flashlightDistance: 0
-  noticeTime: 0.9
+  noticeTime: 0.6
   loseSightTime: 2
-  catchDistance: 0.65
+  catchDistance: 0.45
   waitAtPoint: 1.6
   searchTime: 3
   lookAroundAngle: 70
@@ -143,7 +143,7 @@ MonoBehaviour:
   searchSpread: 3
   lurePathFactor: 1.6
   moveThreshold: 0.35
-  spiritLoseTime: 2.4
+  spiritLoseTime: 1.1
   whisper: {fileID: 4808709455265891270}
   patrolPoints: []
   body: {fileID: 5804886007190490753}
@@ -316,7 +316,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7403411621006803025
+    rid: 7639885788112486481
   m_FalloffIntensity: 0.5
   m_Color: {r: 0.65, g: 0.4, b: 1, a: 1}
   m_Intensity: 0.9
@@ -362,7 +362,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7403411621006803025
+    - rid: 7639885788112486481
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 0

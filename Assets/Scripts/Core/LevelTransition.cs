@@ -25,6 +25,7 @@ public class LevelTransition : MonoBehaviour
     Text title, subtitle, loading;
     Sprite[] frames;
     bool busy;
+    bool exitingPassage;
     float animTime, ghostX = 0.42f;
 
     static LevelTransition Get()
@@ -130,7 +131,10 @@ public class LevelTransition : MonoBehaviour
             title.text = titleText;
             subtitle.text = nameText;
             animTime = 0f;
-            ghostX = -0.15f;
+            exitingPassage = false;
+            Canvas.ForceUpdateCanvases();
+            ghostX = 1f - GhostExitX();
+            Animate(0f);
             float start = Time.unscaledTime;
             yield return Fade(1f, 0f, 0.4f, true);
             while (op.progress < 0.9f || Time.unscaledTime - start < MinPassage)
@@ -138,10 +142,11 @@ public class LevelTransition : MonoBehaviour
                 Animate(Time.unscaledDeltaTime);
                 yield return null;
             }
-            // привид відлітає далі тунелем, екран гасне
-            for (float t = 0f; t < 0.5f; t += Time.unscaledDeltaTime)
+            // Спочатку весь спрайт виходить за екран, і лише потім починається затемнення.
+            exitingPassage = true;
+            while (ghostX < GhostExitX())
             {
-                ghostX += Time.unscaledDeltaTime * 1.2f;
+                ghostX = Mathf.MoveTowards(ghostX, GhostExitX(), Time.unscaledDeltaTime * 1.2f);
                 Animate(Time.unscaledDeltaTime);
                 yield return null;
             }
@@ -167,7 +172,7 @@ public class LevelTransition : MonoBehaviour
         if (front.texture != null) front.uvRect = new Rect(animTime * 0.3f, 0f, 1f, 1f);
 
         // привид підлітає до свого місця й погойдується
-        ghostX = Mathf.MoveTowards(ghostX, Mathf.Max(ghostX, 0.42f), dt * 0.9f);
+        if (!exitingPassage) ghostX = Mathf.MoveTowards(ghostX, 0.42f, dt * 0.9f);
         float bob = Mathf.Sin(animTime * 3f);
         var rt = ghost.rectTransform;
         rt.anchorMin = rt.anchorMax = new Vector2(ghostX, 0.45f);
@@ -182,5 +187,14 @@ public class LevelTransition : MonoBehaviour
 
         int dots = (int)(animTime * 3f) % 4;
         loading.text = "ЗАВАНТАЖЕННЯ" + new string('.', dots) + new string(' ', 3 - dots);
+    }
+
+    float GhostExitX()
+    {
+        var parent = (RectTransform)passageRoot.transform;
+        Vector2 size = ghost.rectTransform.rect.size;
+        // Пів діагоналі покриває також погойдування й поворот спрайта.
+        float margin = size.magnitude * 0.5f + 32f;
+        return 1f + margin / Mathf.Max(1f, parent.rect.width);
     }
 }

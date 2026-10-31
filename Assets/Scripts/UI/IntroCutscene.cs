@@ -151,6 +151,7 @@ public class IntroCutscene : MonoBehaviour
         int skin = GameSettings.Skin;
         int k = skin * GhostSkin.FramesPerSkin + frame;
         Sprite s = k < skinFrames.Length && skinFrames[k] != null ? skinFrames[k] : frame < skinFrames.Length ? skinFrames[frame] : null;
+        s = GhostSkinLibrary.AnimatedFrame(skin, flying ? "move" : "idle", time) ?? s;
         if (s != null) ghostImage.sprite = s;
         else ghostImage.enabled = false;
         rt.localScale = new Vector3(p.z < p.x ? -1f : 1f, 1f, 1f);

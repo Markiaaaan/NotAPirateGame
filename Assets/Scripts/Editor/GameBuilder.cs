@@ -27,6 +27,7 @@ public static class GameBuilder
     const string PrefabsFolder = "Assets/Prefabs";
     const string MenuScenePath = ScenesFolder + "/MainMenu.unity";
     const string IntroScenePath = ScenesFolder + "/Intro.unity";
+    const string TwistScenePath = ScenesFolder + "/Twist.unity";
     const string EndingScenePath = ScenesFolder + "/Ending.unity";
     const string ProductName = "Привид Підземелля";
 
@@ -45,9 +46,17 @@ public static class GameBuilder
         "Але пам'ятай: підземелля не відпускає тих, хто здається. Чи зможеш ти допомогти привиду вибратися звідси? Твоя пригода починається зараз!",
     };
 
+    static readonly string[] TwistLines =
+    {
+        "За склепом знайшлися сходи нагору. У прочиненій брамі сяяв світанок. Ще кілька кроків — і привид нарешті буде вільний.",
+        "Та в брамі виріс велетенський дух. «Ти справді думав, що я тебе відпущу?» Світло згасло. Шлях до волі перекрив Сторож.",
+        "Привид кинувся назад, але крик Сторожа скував його політ. Старий міст тріснув. Герой зірвався в темряву разом з уламками.",
+        "Привид упав у залу Ключника. Вихід замкнений, а ключ носить велетенський скелет. Силою його не здолати. Треба перехитрити вартового.",
+    };
+
     static readonly string[] EndingLines =
     {
-        "Останній важіль - і кам'яні ворота, що колись зачинилися за привидом, із гуркотом поповзли вгору. Згори повіяло свіжим повітрям.",
+        "Ключ повернувся в замку — і кам'яні ворота з гуркотом поповзли вгору. Згори повіяло свіжим повітрям. Цього разу вихід справжній.",
         "Сходинка за сходинкою... і ось воно, старе місто! Маленький привид вилітає з підземелля просто на світанку.",
         "Над дахами сходить сонце. Темні сили лишилися глибоко внизу, і жодні ворота більше його не втримають.",
         "Дякуємо, що грали!",
@@ -162,6 +171,11 @@ public static class GameBuilder
                 BuildLevelScene(levels[i], i + 1, prefabs, path,
                     last ? "ФІНАЛ" : $"РІВЕНЬ {i + 2}", last ? "Нагору, до світанку" : levels[i + 1].name);
                 scenes.Add(path);
+                if (i == 3 && levels.Count > 4)
+                {
+                    BuildTwistScene(levels[4].name);
+                    scenes.Add(TwistScenePath);
+                }
             }
             BuildEndingScene();
             scenes.Add(EndingScenePath);
@@ -315,7 +329,7 @@ public static class GameBuilder
     static bool IsGameScene(string path)
     {
         string n = Path.GetFileNameWithoutExtension(path);
-        return path.StartsWith(ScenesFolder) && (n == "MainMenu" || n == "Intro" || n == "Ending" || n.StartsWith("Level_"));
+        return path.StartsWith(ScenesFolder) && (n == "MainMenu" || n == "Intro" || n == "Twist" || n == "Ending" || n.StartsWith("Level_"));
     }
 
     // ===================================================================== префаби
@@ -397,7 +411,7 @@ public static class GameBuilder
         lantern.AddComponent<TorchFlicker>();
         Set(go.GetComponent<GuardAI>(),
             ("isSpirit", false), ("canCrossWater", false), ("lanternRadius", 3.0f), ("senseRadius", 0f),
-            ("walkSpeed", 2.3f), ("investigateSpeed", 3.0f), ("chaseSpeed", 3.4f),
+            ("walkSpeed", 2.3f), ("investigateSpeed", 3.0f), ("chaseSpeed", 3.25f),
             ("viewDistance", 7f), ("viewAngle", 80f), ("flashlightDistance", 0f), ("noticeTime", 0.6f),
             ("flashlight", lantern.transform),
             ("alertClip", A("skeleton_alert")), ("huhClip", A("skeleton_huh")));
@@ -419,10 +433,10 @@ public static class GameBuilder
         whisper.volume = 0f;
         // дух відчуває РУХ у радіусі senseRadius (крізь стіни), літає крізь стіни, повільніший за привида
         Set(go.GetComponent<GuardAI>(),
-            ("isSpirit", true), ("canCrossWater", true), ("lanternRadius", 0f), ("senseRadius", 3.2f),
-            ("walkSpeed", 1.5f), ("investigateSpeed", 2.4f), ("chaseSpeed", 2.9f),
-            ("viewDistance", 0f), ("viewAngle", 100f), ("flashlightDistance", 0f), ("noticeTime", 0.9f),
-            ("moveThreshold", 0.35f), ("spiritLoseTime", 2.4f), ("waitAtPoint", 1.6f), ("searchTime", 3f),
+            ("isSpirit", true), ("canCrossWater", true), ("lanternRadius", 0f), ("senseRadius", 2.8f),
+            ("walkSpeed", 1.2f), ("investigateSpeed", 3.0f), ("chaseSpeed", 3.1f),
+            ("viewDistance", 0f), ("viewAngle", 100f), ("flashlightDistance", 0f), ("noticeTime", 0.6f),
+            ("moveThreshold", 0.35f), ("spiritLoseTime", 1.1f), ("catchDistance", 0.45f), ("waitAtPoint", 1.6f), ("searchTime", 3f),
             ("animFps", 6f), ("flashlight", aura.transform), ("whisper", whisper),
             ("alertClip", A("spirit_alert")), ("huhClip", A("spirit_huh")));
         return go;
@@ -480,7 +494,7 @@ public static class GameBuilder
     static GameObject MakeVase()
     {
         var go = MakeLure<LureObject>("Vase", "Props/vase.png", new Vector2(0.6f, 0.6f), new Vector2(0f, -0.2f),
-            "Розбити глечик", 0f, 1f, true, 7f, 0f, 0.15f, "vase_crash");
+            "Розбити глечик", 0f, 1f, true, 10f, 0f, 0.15f, "vase_crash");
         Set(go.GetComponent<LureObject>(), ("passableAfterUse", true));
         Set(go.AddComponent<LureVisuals>(),
             ("target", go.GetComponent<SpriteRenderer>()),
@@ -492,7 +506,7 @@ public static class GameBuilder
     static GameObject MakeTV()
     {
         var go = MakeLure<LureObject>("TV", "Props/tv_off.png", new Vector2(0.9f, 0.8f), new Vector2(0f, -0.1f),
-            "Завести патефон", 0f, 8f, false, 10f, 5f, 0.2f, "tv_static");
+            "Завести патефон", 0f, 8f, false, 14f, 5f, 0.2f, "tv_static");
         var glow = Child(go, "Glow", new Vector2(0f, 0.2f));
         AddLight(glow, LightPoint, new Color(1f, 0.75f, 0.4f), 0.7f, 2f);
         Set(go.AddComponent<LureVisuals>(),
@@ -506,7 +520,7 @@ public static class GameBuilder
     static GameObject MakePhone()
     {
         var go = MakeLure<LureObject>("Phone", "Props/phone.png", new Vector2(0.8f, 0.6f), new Vector2(0f, -0.2f),
-            "Вдарити в дзвін", 0f, 8f, false, 15f, 3f, 0.2f, "phone_ring");
+            "Вдарити в дзвін", 0f, 8f, false, 19f, 3f, 0.2f, "phone_ring");
         var glow = Child(go, "Glow", Vector2.zero);
         AddLight(glow, LightPoint, new Color(1f, 0.85f, 0.4f), 0.8f, 1.6f);
         Set(go.AddComponent<LureVisuals>(),
@@ -521,7 +535,7 @@ public static class GameBuilder
     static GameObject MakeMannequin()
     {
         var go = MakeLure<MannequinLure>("Mannequin", "Props/mannequin.png", new Vector2(0.6f, 0.5f), new Vector2(0f, -0.25f),
-            "Штовхнути обладунки", 0f, 1f, true, 8f, 0f, 0.3f, "mannequin_move");
+            "Штовхнути обладунки", 0f, 1f, true, 11f, 0f, 0.3f, "mannequin_move");
         Set(go.GetComponent<MannequinLure>(), ("moveTime", 0.5f));
         return go;
     }
@@ -589,7 +603,7 @@ public static class GameBuilder
     static GameObject MakeLever()
     {
         var go = MakeLure<LeverLure>("Lever", "Props/lever_up.png", new Vector2(0.6f, 0.5f), new Vector2(0f, -0.2f),
-            "Потягти важіль (гуркіт почує вся нежить!)", 0f, 1f, true, 60f, 3f, 0.3f, "lever_pull");
+            "Потягти важіль (шум почують вороги поруч)", 0f, 1f, true, 12f, 3f, 0.15f, "lever_pull");
         Set(go.GetComponent<LeverLure>(),
             ("body", go.GetComponent<SpriteRenderer>()), ("downSprite", S("Props/lever_down.png")));
         return go;
@@ -611,7 +625,6 @@ public static class GameBuilder
             ("moveClip", A("menu_move")),
             ("selectClip", A("menu_select")),
             ("gameTitle", "ПРИВИД ПІДЗЕМЕЛЛЯ"),
-            ("subtitle", "Маленький привид у пастці підземелля. Вибирайся, заманюючи нежить шумом."),
             ("background", S("UI/menu_background.png")));
 
         EditorSceneManager.SaveScene(scene, MenuScenePath);
@@ -632,6 +645,21 @@ public static class GameBuilder
             ("nextName", firstLevelName),
             ("skinFrames", AllSkinFrames()));
         EditorSceneManager.SaveScene(scene, IntroScenePath);
+    }
+
+    static void BuildTwistScene(string nextLevelName)
+    {
+        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        MakeCamera(Vector2.zero, Color.black);
+        var slides = Enumerable.Range(1, 4).Select(i => S($"Intro/Twist/twist_{i}.png")).ToArray();
+        var story = new GameObject("Twist");
+        Set(story.AddComponent<IntroCutscene>(),
+            ("slides", slides), ("lines", TwistLines),
+            ("music", MenuMusic()), ("typeClip", A("type_blip")),
+            ("autoAdvanceDelay", 5f), ("fadeTime", 0.7f),
+            ("nextTitle", "РІВЕНЬ 5"), ("nextName", nextLevelName),
+            ("skinFrames", AllSkinFrames()));
+        EditorSceneManager.SaveScene(scene, TwistScenePath);
     }
 
     static void BuildEndingScene()
@@ -663,6 +691,21 @@ public static class GameBuilder
         EditorSceneManager.SaveScene(scene, EndingScenePath);
     }
 
+    [MenuItem("Tools/Ghost/Перебудувати тільки фінальний рівень")]
+    public static void RebuildFinalLevelOnly()
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Спочатку зупини Play Mode.");
+        AssetDatabase.Refresh();
+        MakeSpritesReadable();
+        var prefabs = EnsurePrefabs(false);
+        var data = LevelData.Parse(File.ReadAllText(LevelsFolder + "/level_05.txt", Encoding.UTF8));
+        BuildLevelScene(data, 5, prefabs, ScenesFolder + "/Level_05.unity", "ФІНАЛ", "Нагору, до світанку");
+        BuildTwistScene(data.name);
+        BuildEndingScene();
+        AssetDatabase.SaveAssets();
+        Debug.Log("FINAL_LEVEL_REBUILT: Ключник, пастка, ключ, замкнений вихід.");
+    }
+
     static void BuildLevelScene(LevelData data, int number, PrefabSet prefabs, string scenePath, string nextTitle, string nextName)
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -692,6 +735,7 @@ public static class GameBuilder
         gridGo.AddComponent<LevelGrid>().SetRows(rows);
 
         GameObject player = null, exitGo = null;
+        BossTrap bossTrap = null;
         var mannequins = new List<GameObject>();
         var targets = new List<Vector2>();
         var marks = new Dictionary<char, Vector2>();   // точки маршрутів: 1..9 і a..l
@@ -734,6 +778,9 @@ public static class GameBuilder
                     case 'E': exitGo = Place(prefabs.exit, pos, level); break;
                     case '*': Place(prefabs.key, pos, lureRoot); break;
                     case 'X': Place(prefabs.lever, pos, lureRoot); break;
+                    case 'F':
+                        if (number == 5) bossTrap = MakeBossTrap(pos, new Vector2(17f, -11f), lureRoot);
+                        break;
                     case 'M': mannequins.Add(Place(prefabs.mannequin, pos, lureRoot)); break;
                     case 'm': targets.Add(pos); break;
                     case 'P': player = Place(prefabs.player, pos, null); break;
@@ -757,11 +804,12 @@ public static class GameBuilder
         }
 
         // Є ключ чи важіль - вихід замкнений
-        bool hasLock = rows.Any(row => row.IndexOf('*') >= 0 || row.IndexOf('X') >= 0);
+        bool hasLock = number == 5 || rows.Any(row => row.IndexOf('*') >= 0 || row.IndexOf('X') >= 0);
         if (exitGo != null && hasLock)
         {
             var exitComp = exitGo.GetComponent<LevelExit>();
             Set(exitComp, ("startsLocked", true));
+            if (number == 5) Set(exitComp, ("requiresKey", true));
             PrefabUtility.RecordPrefabInstancePropertyModifications(exitComp);
         }
 
@@ -778,6 +826,34 @@ public static class GameBuilder
             var ai = g.GetComponent<GuardAI>();
             ai.Configure(points);
             PrefabUtility.RecordPrefabInstancePropertyModifications(ai);
+        }
+
+        if (number == 5)
+        {
+            var points = data.bossPoints.Where(p => p.Length > 0 && marks.ContainsKey(p[0])).Select(p => marks[p[0]]).ToArray();
+            if (points.Length == 0 || bossTrap == null) throw new InvalidOperationException("На фінальній карті потрібні boss: маршрут і F (ланцюг).");
+            var bossGo = Place(prefabs.skeleton, points[0], enemyRoot);
+            bossGo.name = "Jailer";
+            bossGo.transform.localScale = Vector3.one * 1.75f;
+            PrefabUtility.RecordPrefabInstancePropertyModifications(bossGo.transform);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(bossGo);
+            var ai = bossGo.GetComponent<GuardAI>();
+            Set(ai, ("walkSpeed", 1.3f), ("investigateSpeed", 2.2f), ("chaseSpeed", 2.7f),
+                ("noticeTime", 0.85f), ("catchDistance", 0.8f), ("waitAtPoint", 0.8f));
+            ai.Configure(points);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(ai);
+            var key = Place(prefabs.key, points[0], lureRoot);
+            key.name = "KeyJailer";
+            key.SetActive(false);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(key);
+            var jailer = bossGo.AddComponent<BossJailer>();
+            Set(jailer, ("droppedKey", key));
+            Set(bossTrap, ("boss", jailer));
+            var belt = Child(bossGo, "KeyBelt", new Vector2(0.28f, -0.05f)).AddComponent<SpriteRenderer>();
+            belt.sprite = S("Props/key.png");
+            belt.sortingOrder = 100;
+            belt.transform.localScale = Vector3.one * 0.5f;
+            UseUnlit(belt);
         }
 
         // Системи
@@ -816,6 +892,34 @@ public static class GameBuilder
         EditorSceneManager.SaveScene(scene, scenePath);
     }
 
+    static BossTrap MakeBossTrap(Vector2 control, Vector2 impact, Transform parent)
+    {
+        var go = new GameObject("TrapChain");
+        go.transform.SetParent(parent, false);
+        go.transform.position = control;
+        // Окремий дочірній малюнок зберігає одиничний масштаб кореня колайдера й пастки.
+        var visual = Child(go, "TrapChainVisual", Vector2.zero).AddComponent<SpriteRenderer>();
+        visual.sprite = S("Props/Finale/pull_chain.png");
+        UseUnlit(visual);
+        if (visual.sprite != null) visual.transform.localScale = Vector3.one * (1.6f / visual.sprite.bounds.size.y);
+        go.AddComponent<BoxCollider2D>().isTrigger = true;
+        var trap = go.AddComponent<BossTrap>();
+        Set(trap, ("energyCost", 0f), ("cooldown", 4f), ("singleUse", false),
+            ("impactPosition", impact), ("highlightSprite", visual),
+            ("chainClip", A("lever_pull")), ("impactClip", A("vase_crash")));
+        var stone = Child(go, "HangingStone", impact - control + Vector2.up * 1.6f).AddComponent<SpriteRenderer>();
+        stone.sprite = S("Props/Finale/hanging_stone.png");
+        if (stone.sprite != null) stone.transform.localScale = Vector3.one * (1.5f / stone.sprite.bounds.size.y);
+        UseUnlit(stone);
+        var marker = Child(go, "TrapMark", impact - control).AddComponent<SpriteRenderer>();
+        marker.sprite = UIFactory.UISprite("ui_shadow");
+        marker.color = new Color(1f, 0.65f, 0.1f, 0.4f);
+        marker.sortingOrder = -9000;
+        UseUnlit(marker);
+        Set(trap, ("stone", stone), ("marker", marker));
+        return trap;
+    }
+
     static Camera MakeCamera(Vector2 position, Color background)
     {
         var go = new GameObject("Main Camera");
@@ -837,7 +941,7 @@ public static class GameBuilder
         {
             if (ours.Contains(s.path)) continue;
             string sceneName = Path.GetFileNameWithoutExtension(s.path);
-            if (sceneName.StartsWith("Level_") || sceneName == "Intro" || sceneName == "Ending") continue;
+            if (sceneName.StartsWith("Level_") || sceneName == "Intro" || sceneName == "Twist" || sceneName == "Ending") continue;
             list.Add(new EditorBuildSettingsScene(s.path, s.enabled));
         }
         EditorBuildSettings.scenes = list.ToArray();
@@ -1036,6 +1140,7 @@ public static class GameBuilder
         public string hint = "";
         public string theme = "cellar";
         public readonly List<(bool spirit, string[] points)> enemies = new List<(bool, string[])>();
+        public string[] bossPoints = new string[0];
         public string[] rows = new string[0];
 
         public static LevelData Parse(string text)
@@ -1063,6 +1168,7 @@ public static class GameBuilder
                 if (key == "name") d.name = val;
                 else if (key == "hint") d.hint = val;
                 else if (key == "theme") d.theme = val.ToLowerInvariant();
+                else if (key == "boss") d.bossPoints = val.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 else if (key == "skeleton" || key == "guard" || key == "spirit")
                     d.enemies.Add((key == "spirit", val.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)));
             }

@@ -258,7 +258,7 @@ public class Minimap : MonoBehaviour
         // вороги: скелет з колом ліхтаря, дух з колом чуття
         foreach (var e in enemies)
         {
-            if (e == null) continue;
+            if (e == null || !e.gameObject.activeInHierarchy) continue;
             Vector2 p = e.transform.position;
             float px = (p.x + 0.5f) * C, py = (-p.y + 0.5f) * C;
             bool chase = e.IsChasing;
@@ -274,6 +274,20 @@ public class Minimap : MonoBehaviour
                 Vector2 f = e.Facing;
                 Plot(px + f.x * 3.5f, py - f.y * 3.5f, new Color32(255, 200, 160, 255));
             }
+        }
+
+        var trap = BossTrap.Instance;
+        if (trap != null && !trap.IsComplete)
+        {
+            Vector2 p = trap.ImpactPosition;
+            Ring((p.x + 0.5f) * C, (-p.y + 0.5f) * C, 1.8f * C,
+                trap.IsDropping ? new Color32(255, 80, 40, 255) : new Color32(255, 200, 70, 255), 0.8f);
+        }
+        var jailer = BossJailer.Instance;
+        if (jailer != null && jailer.IsDefeated && jailer.KeyObject != null && jailer.KeyObject.activeInHierarchy)
+        {
+            Vector2Int keyCell = Cell(jailer.KeyObject.transform.position);
+            FillRect(keyCell, 2, 1, 2, 4, new Color32(255, 220, 70, 255));
         }
 
         // привид: точка і напрям погляду (у 3D)

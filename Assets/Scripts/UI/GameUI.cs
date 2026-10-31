@@ -173,12 +173,13 @@ public class GameUI : MonoBehaviour
         time += dt;
         if (PauseMenu.IsPaused) return;
 
-        bool chased = false, spiritNear = false;
+        bool chased = false, spiritNear = false, spiritAlerted = false;
         foreach (var e in enemies)
         {
             if (e == null) continue;
             if (e.IsChasing) chased = true;
             if (e.GhostInSense) spiritNear = true;
+            if (e.SpiritHasNoticed) spiritAlerted = true;
         }
         if (ghostBody != null && Time.deltaTime > 0f)
         {
@@ -191,7 +192,7 @@ public class GameUI : MonoBehaviour
         float vis = ghost != null ? ghost.Visibility : 0f;
         bool seen = ghost != null && ghost.IsVisible;
 
-        UpdateStatus(chased, seen, vis, spiritNear, moving);
+        UpdateStatus(chased, seen, vis, spiritNear, moving, spiritAlerted);
         UpdateVignette(chased, seen || spiritNear, dt, spiritNear);
         UpdateObjective(dt);
         UpdatePrompt(dt, over);
@@ -221,10 +222,11 @@ public class GameUI : MonoBehaviour
         }
     }
 
-    void UpdateStatus(bool chased, bool seen, float vis, bool spiritNear, bool moving)
+    void UpdateStatus(bool chased, bool seen, float vis, bool spiritNear, bool moving, bool spiritAlerted)
     {
         string label; Color col;
         if (chased) { label = "ПОГОНЯ!"; col = AlarmColor; }
+        else if (spiritAlerted) { label = "ТІКАЙ!"; col = AlarmColor; }
         // злий дух поруч: він відчуває рух, тож треба завмерти
         else if (spiritNear) { label = moving ? "ЗАВМРИ!" : "ДУХ ПОРУЧ"; col = moving && Mathf.Repeat(time, 0.4f) > 0.2f ? Color.white : SpiritColor; }
         else if (seen) { label = "ТЕБЕ ВИДНО"; col = SeenColor; }
@@ -263,10 +265,19 @@ public class GameUI : MonoBehaviour
         string text; string icon;
         if (exit != null && exit.HasLock && exit.IsLocked)
         {
-            text = exit.LeversNeeded > 1
-                ? $"Потягни всі важелі: {exit.LeversPulled} з {exit.LeversNeeded} (E)"
-                : "Знайди важіль і потягни його (E)";
-            icon = "icon_lever";
+            if (exit.RequiresKey)
+            {
+                text = BossJailer.Instance != null && BossJailer.Instance.IsDefeated
+                    ? "Забери ключ Ключника" : "Заманюй Ключника під вантаж";
+                icon = "icon_exit";
+            }
+            else
+            {
+                text = exit.LeversNeeded > 1
+                    ? $"Потягни всі важелі: {exit.LeversPulled} з {exit.LeversNeeded} (E)"
+                    : "Знайди важіль і потягни його (E)";
+                icon = "icon_lever";
+            }
         }
         else if (exit != null && exit.HasLock) { text = "Вихід відчинено - лети до дверей!"; icon = "icon_check"; }
         else { text = "Знайди вихід"; icon = "icon_exit"; }

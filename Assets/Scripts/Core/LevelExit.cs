@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Вихід із рівня: двері в стіні.
 /// Якщо на рівні є важіль (X), двері спочатку замкнені: відчиняються, коли потягнуто ВСІ важелі рівня
-/// (на фінальному рівні їх три).
+/// На фінальному рівні потрібен ключ Ключника.
 /// Незамкнені двері самі розчиняються, коли привид підлітає ближче за openDistance,
 /// і зачиняються, коли він відлітає. Залетів у відчинені двері - рівень пройдено.
 /// Спрайт дверей (body) бере й 3D-вигляд, тож анімацію видно і там.
@@ -18,6 +18,7 @@ public class LevelExit : MonoBehaviour
     public static event Action<string> Message;
 
     [SerializeField] bool startsLocked;
+    [SerializeField] bool requiresKey;
     [SerializeField] SpriteRenderer body;
     [SerializeField] Sprite lockedSprite;
     [Tooltip("Кадри від зачинених до повністю відчинених")]
@@ -39,9 +40,11 @@ public class LevelExit : MonoBehaviour
 
     public bool HasLock => startsLocked;
     public bool IsLocked => locked;
+    public bool RequiresKey => requiresKey;
     public int LeversNeeded => leversNeeded;
     public int LeversPulled => leversPulled;
     public Sprite CurrentSprite => body != null ? body.sprite : null;
+    public static void Announce(string message) => Message?.Invoke(message);
 
     // Викликається, коли додаєш компонент: одразу робить колайдер тригером.
     void Reset()
@@ -124,7 +127,8 @@ public class LevelExit : MonoBehaviour
             if (lockedMessageTimer > 0f) return;
             lockedMessageTimer = 2f;
             GameAudio.Play(lockedClip);
-            Message?.Invoke(leversNeeded > 1
+            Message?.Invoke(requiresKey ? "Замкнено! Ключ у Ключника. Заманюй його під кам'яний вантаж."
+                : leversNeeded > 1
                 ? $"Замкнено! Потягни всі важелі: {leversPulled} з {leversNeeded}"
                 : "Замкнено! Знайди важіль, щоб відчинити вихід");
         }

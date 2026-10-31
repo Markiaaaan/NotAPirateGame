@@ -18,6 +18,7 @@ public class GhostAnimator : MonoBehaviour
     GhostVisibility visibility;
     Rigidbody2D rb;
     bool caught;
+    public bool IsCaught => caught;
 
     void Awake()
     {

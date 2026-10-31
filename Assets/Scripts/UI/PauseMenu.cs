@@ -61,7 +61,7 @@ public class PauseMenu : MonoBehaviour
 
         var dim = UIFactory.MakeImage(root.transform, "Dim", c, Vector2.zero, Vector2.zero, new Color(0.02f, 0.01f, 0.04f, 0.7f));
         UIFactory.Stretch(dim.rectTransform);
-        UIFactory.MakePanel(root.transform, "Panel", c, new Vector2(0f, 10f), new Vector2(980f, 700f), true);
+        UIFactory.MakePanel(root.transform, "Panel", c, new Vector2(0f, 10f), new Vector2(980f, 760f), true);
         UIFactory.MakeText(root.transform, "Header", "ПАУЗА", 80, c, new Vector2(0f, 270f), new Vector2(900f, 100f),
             TextAnchor.MiddleCenter, new Color(1f, 0.85f, 0.5f));
 
@@ -77,6 +77,10 @@ public class PauseMenu : MonoBehaviour
         AddRow("ЧУТЛИВІСТЬ МИШІ", ref y, null,
             d => GameSettings.MouseSensitivity = Step(GameSettings.MouseSensitivity, d, 0.25f, 0.25f, 3f),
             () => "x" + GameSettings.MouseSensitivity.ToString("0.00"));
+        AddRow("ПІДКАЗКИ", ref y, null,
+            d => GameSettings.TutorialHintsEnabled = !GameSettings.TutorialHintsEnabled,
+            () => GameSettings.TutorialHintsEnabled ? "Увімкнено" : "Вимкнено");
+        rows[rows.Count - 1].value.fontSize = 32;
         AddRow("ГОЛОВНЕ МЕНЮ", ref y, ToMenu, null, null);
 
         arrow = UIFactory.MakeText(root.transform, "Arrow", "►", 48, c, new Vector2(-420f, 160f), new Vector2(48f, 70f),

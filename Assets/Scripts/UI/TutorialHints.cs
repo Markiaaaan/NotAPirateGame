@@ -68,6 +68,7 @@ public class TutorialHints : MonoBehaviour
         delay = startDelay;
         if (savedDone) enabled = false;
         SetVisible(0f);
+        canvasRoot.SetActive(GameSettings.TutorialHintsEnabled);
     }
 
     void Start()
@@ -102,6 +103,16 @@ public class TutorialHints : MonoBehaviour
 
     void Update()
     {
+        if (!GameSettings.TutorialHintsEnabled)
+        {
+            // Не витрачаємо кроки й таймери, поки навчання вимкнене.
+            visible = false;
+            show = 0f;
+            SetVisible(0f);
+            canvasRoot.SetActive(false);
+            if (sfx.isPlaying) sfx.Stop();
+            return;
+        }
         // під час паузи віконце ховається, щоб не просвічувало крізь меню паузи
         if (canvasRoot != null && canvasRoot.activeSelf == PauseMenu.IsPaused) canvasRoot.SetActive(!PauseMenu.IsPaused);
         if (PauseMenu.IsPaused || LevelTransition.Busy) return;

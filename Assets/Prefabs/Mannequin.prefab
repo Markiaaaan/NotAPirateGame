@@ -270,7 +270,7 @@ MonoBehaviour:
   singleUse: 1
   highlightSprite: {fileID: 6833729047219739368}
   highlightColor: {r: 1, g: 0.95, b: 0.5, a: 1}
-  loudness: 8
+  loudness: 11
   duration: 0
   suspicion: 0.3
   passableAfterUse: 0

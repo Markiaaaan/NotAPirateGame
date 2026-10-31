@@ -22,6 +22,11 @@ public class GhostSkin : MonoBehaviour
     SpriteRenderer spriteRenderer;
     readonly Dictionary<Sprite, int> index = new Dictionary<Sprite, int>();
     int skin;
+    GhostAnimator ghostAnimator;
+    PlayerMovement movement;
+    FirstPersonMovement firstPerson;
+    string animationState = "appear";
+    float animationTime;
 
     /// <summary>Скін привида в поточній сцені (для інтерфейсу).</summary>
     public static GhostSkin Current { get; private set; }
@@ -39,6 +44,9 @@ public class GhostSkin : MonoBehaviour
     {
         Current = this;
         spriteRenderer = GetComponent<SpriteRenderer>();
+        ghostAnimator = GetComponent<GhostAnimator>();
+        movement = GetComponent<PlayerMovement>();
+        firstPerson = GetComponent<FirstPersonMovement>();
 
 #if UNITY_EDITOR
         if (skinFrames.Length < FramesPerSkin || classicFrames.Length == 0)
@@ -68,6 +76,8 @@ public class GhostSkin : MonoBehaviour
     public void SetSkin(int s)
     {
         skin = SkinCount > 0 ? Mathf.Clamp(s, 0, SkinCount - 1) : 0;
+        animationState = "appear";
+        animationTime = 0f;
         Apply();
     }
 
@@ -78,7 +88,33 @@ public class GhostSkin : MonoBehaviour
         return i < classicFrames.Length ? classicFrames[i] : null;
     }
 
-    void LateUpdate() => Apply();
+    void LateUpdate()
+    {
+        if (GhostSkinLibrary.HasExtendedAnimations(skin) && spriteRenderer != null)
+        {
+            UpdateExtendedAnimation();
+            return;
+        }
+        Apply();
+    }
+
+    void UpdateExtendedAnimation()
+    {
+        bool caught = ghostAnimator != null && ghostAnimator.IsCaught;
+        bool flying = (movement != null && movement.enabled && movement.IsMoving)
+            || (firstPerson != null && firstPerson.enabled && firstPerson.IsMoving);
+        float appearDuration = GhostSkinLibrary.AnimationFrames(skin, "appear").Length / GhostSkinLibrary.AnimationFps;
+        string next;
+        if (caught) next = "dissolve";
+        else if (animationState == "appear" && animationTime < appearDuration) next = "appear";
+        // Світло змінює лише прозорість через GhostVisibility, як у решти скінів.
+        else next = flying ? "move" : "idle";
+        if (next != animationState) { animationState = next; animationTime = 0f; }
+        var frame = GhostSkinLibrary.AnimatedFrame(skin, animationState, animationTime,
+            animationState != "appear" && animationState != "dissolve");
+        if (frame != null) spriteRenderer.sprite = frame;
+        animationTime += Time.deltaTime;
+    }
 
     void Apply()
     {

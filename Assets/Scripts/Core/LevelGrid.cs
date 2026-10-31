@@ -154,7 +154,12 @@ public class LevelGrid : MonoBehaviour
     public bool FindPathToward(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater)
         => FindPathInternal(from, to, result, allowWater, true);
 
-    bool FindPathInternal(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater, bool closestIfBlocked)
+    public bool FindPatrolPath(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater,
+        System.Predicate<Vector2Int> allowed)
+        => FindPathInternal(from, to, result, allowWater, true, allowed);
+
+    bool FindPathInternal(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater, bool closestIfBlocked,
+        System.Predicate<Vector2Int> allowed = null)
     {
         result.Clear();
         if (Width == 0) return false;
@@ -190,6 +195,7 @@ public class LevelGrid : MonoBehaviour
             {
                 var n = c + d;
                 if (!IsWalkable(n, allowWater)) continue;
+                if (allowed != null && !allowed(n)) continue;
                 // не зрізаємо кути по діагоналі
                 if (d.x != 0 && d.y != 0 &&
                     (!IsWalkable(new Vector2Int(c.x + d.x, c.y), allowWater) || !IsWalkable(new Vector2Int(c.x, c.y + d.y), allowWater)))

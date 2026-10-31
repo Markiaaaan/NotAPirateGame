@@ -50,7 +50,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7403411621006803021
+    rid: 7639885788112486477
   m_FalloffIntensity: 0.5
   m_Color: {r: 0.6, g: 0.85, b: 1, a: 1}
   m_Intensity: 0.45
@@ -96,7 +96,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7403411621006803021
+    - rid: 7639885788112486477
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 0
@@ -483,8 +483,23 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 6ab383480cf25be4d86c3a5f88e66087, type: 3}
   - {fileID: 21300000, guid: 9800e4910077afb4f9ee9a070427d317, type: 3}
   - {fileID: 21300000, guid: 2d96e83c4ce25b8459cbb6f7c0b4f985, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
+  - {fileID: 21300000, guid: 417ce06505b741998506e395a0c4f88f, type: 3}
   skinNames:
   - "\u041A\u043B\u0430\u0441\u0438\u0447\u043D\u0438\u0439"
   - "\u041A\u0443\u0447\u0435\u0440\u044F\u0432\u0438\u0439"
   - "\u0420\u043E\u043A\u0435\u0440"
   - "\u0420\u043E\u0437\u0432\u0456\u0434\u043D\u0438\u043A"
+  - "\u0421\u0442\u0438\u043B\u044F\u0433\u0430"

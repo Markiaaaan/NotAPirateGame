@@ -24,6 +24,9 @@ EditorBuildSettings:
     path: Assets/Scenes/Level_04.unity
     guid: 3aaeb97af1851dd4991e696e9d7a3d0a
   - enabled: 1
+    path: Assets/Scenes/Twist.unity
+    guid: d85f73a6864d4a008146a76c70b31b1e
+  - enabled: 1
     path: Assets/Scenes/Level_05.unity
     guid: dda14bea233c98a42932a107be6beb0e
   - enabled: 1
