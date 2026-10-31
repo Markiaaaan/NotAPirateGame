@@ -18,6 +18,7 @@ public class GameUI : MonoBehaviour
     static readonly Color SeenColor = new Color(0.55f, 0.9f, 1f);
     static readonly Color AlarmColor = new Color(1f, 0.32f, 0.28f);
     static readonly Color OkColor = new Color(0.5f, 1f, 0.6f);
+    static readonly Color SpiritColor = new Color(0.82f, 0.6f, 1f);
 
     RectTransform canvasRt, objectivePanel, promptPanel, statusPanel, noticePanel;
     Image vignette, portrait, eyeOpen, eyeClosed, objectiveIcon, noticeImage, promptImage;
@@ -27,6 +28,9 @@ public class GameUI : MonoBehaviour
     CanvasGroup objectiveGroup;
 
     GhostVisibility ghost;
+    Transform ghostBody;
+    Vector3 lastGhostPos;
+    float ghostSpeed;
     SpriteRenderer ghostSprite;
     PlayerInteractor interactor;
     GuardAI[] enemies = new GuardAI[0];
@@ -37,6 +41,7 @@ public class GameUI : MonoBehaviour
 
     void Awake()
     {
+        if (GetComponent<Minimap>() == null) gameObject.AddComponent<Minimap>();
         firstPerson = GameSettings.FirstPerson;
         Build();
     }
@@ -48,6 +53,8 @@ public class GameUI : MonoBehaviour
         {
             ghost = interactor.GetComponent<GhostVisibility>();
             ghostSprite = interactor.GetComponent<SpriteRenderer>();
+            ghostBody = interactor.transform;
+            lastGhostPos = ghostBody.position;
         }
         enemies = FindObjectsByType<GuardAI>(FindObjectsSortMode.None);
 
@@ -166,14 +173,27 @@ public class GameUI : MonoBehaviour
         time += dt;
         if (PauseMenu.IsPaused) return;
 
-        bool chased = false;
-        foreach (var e in enemies) if (e != null && e.IsChasing) { chased = true; break; }
+        bool chased = false, spiritNear = false, spiritAlerted = false;
+        foreach (var e in enemies)
+        {
+            if (e == null) continue;
+            if (e.IsChasing) chased = true;
+            if (e.GhostInSense) spiritNear = true;
+            if (e.SpiritHasNoticed) spiritAlerted = true;
+        }
+        if (ghostBody != null && Time.deltaTime > 0f)
+        {
+            float sp = Vector3.Distance(ghostBody.position, lastGhostPos) / Time.deltaTime;
+            ghostSpeed = Mathf.Lerp(ghostSpeed, sp, 1f - Mathf.Exp(-Time.deltaTime * 12f));
+            lastGhostPos = ghostBody.position;
+        }
+        bool moving = ghostSpeed > 0.35f;
         bool over = GameManager.Instance != null && GameManager.Instance.IsLevelOver;
         float vis = ghost != null ? ghost.Visibility : 0f;
         bool seen = ghost != null && ghost.IsVisible;
 
-        UpdateStatus(chased, seen, vis);
-        UpdateVignette(chased, seen, dt);
+        UpdateStatus(chased, seen, vis, spiritNear, moving, spiritAlerted);
+        UpdateVignette(chased, seen || spiritNear, dt, spiritNear);
         UpdateObjective(dt);
         UpdatePrompt(dt, over);
 
@@ -202,18 +222,21 @@ public class GameUI : MonoBehaviour
         }
     }
 
-    void UpdateStatus(bool chased, bool seen, float vis)
+    void UpdateStatus(bool chased, bool seen, float vis, bool spiritNear, bool moving, bool spiritAlerted)
     {
         string label; Color col;
         if (chased) { label = "ПОГОНЯ!"; col = AlarmColor; }
+        else if (spiritAlerted) { label = "ТІКАЙ!"; col = AlarmColor; }
+        // злий дух поруч: він відчуває рух, тож треба завмерти
+        else if (spiritNear) { label = moving ? "ЗАВМРИ!" : "ДУХ ПОРУЧ"; col = moving && Mathf.Repeat(time, 0.4f) > 0.2f ? Color.white : SpiritColor; }
         else if (seen) { label = "ТЕБЕ ВИДНО"; col = SeenColor; }
         else { label = "СХОВАНИЙ"; col = Calm; }
         statusText.text = label;
         statusText.color = chased && Mathf.Repeat(time, 0.5f) > 0.3f ? Color.white : col;
-        bool open = chased || seen;
+        bool open = chased || seen || spiritNear;
         eyeOpen.enabled = open && eyeOpen.sprite != null;
         eyeClosed.enabled = !open && eyeClosed.sprite != null;
-        if (open) eyeOpen.color = chased ? new Color(1f, 0.6f, 0.6f) : Color.white;
+        if (open) eyeOpen.color = chased ? new Color(1f, 0.6f, 0.6f) : spiritNear ? new Color(0.85f, 0.65f, 1f) : Color.white;
 
         if (portrait != null && ghostSprite != null && ghostSprite.sprite != null)
         {
@@ -224,10 +247,11 @@ public class GameUI : MonoBehaviour
         }
     }
 
-    void UpdateVignette(bool chased, bool seen, float dt)
+    void UpdateVignette(bool chased, bool seen, float dt, bool spiritNear)
     {
         Color target;
         if (chased) target = new Color(0.8f, 0.05f, 0.05f, 0.45f + 0.15f * Mathf.Sin(time * 6f));
+        else if (spiritNear) target = new Color(0.6f, 0.2f, 0.9f, 0.32f + 0.08f * Mathf.Sin(time * 4f));
         else if (seen) target = new Color(0.55f, 0.85f, 1f, 0.28f);
         else if (SuspicionMeter.Instance != null && SuspicionMeter.Instance.IsAlert) target = new Color(0.9f, 0.45f, 0.1f, 0.25f);
         else target = new Color(0f, 0f, 0f, firstPerson ? 0.25f : 0.45f);
@@ -239,7 +263,24 @@ public class GameUI : MonoBehaviour
     {
         var exit = LevelExit.Instance;
         string text; string icon;
-        if (exit != null && exit.HasLock && exit.IsLocked) { text = "Знайди важіль і потягни його (E)"; icon = "icon_lever"; }
+        if (exit != null && exit.HasLock && exit.IsLocked)
+        {
+            if (exit.RequiresKey)
+            {
+                var boss = BossJailer.Instance;
+                text = boss != null && boss.IsDefeated ? "Забери ключ Ключника"
+                    : boss != null && boss.HitsNeeded > 1 ? $"Скинь вантаж на Ключника: {boss.Hits} з {boss.HitsNeeded}"
+                    : "Заманюй Ключника під вантаж";
+                icon = "icon_exit";
+            }
+            else
+            {
+                text = exit.LeversNeeded > 1
+                    ? $"Потягни всі важелі: {exit.LeversPulled} з {exit.LeversNeeded} (E)"
+                    : "Знайди важіль і потягни його (E)";
+                icon = "icon_lever";
+            }
+        }
         else if (exit != null && exit.HasLock) { text = "Вихід відчинено - лети до дверей!"; icon = "icon_check"; }
         else { text = "Знайди вихід"; icon = "icon_exit"; }
 
@@ -256,9 +297,9 @@ public class GameUI : MonoBehaviour
         objectiveFlash = Mathf.Max(0f, objectiveFlash - dt);
         objectiveText.color = objectiveFlash > 0f && Mathf.Repeat(objectiveFlash, 0.3f) > 0.15f ? OkColor : Color.white;
 
-        // у 3D - під мінікартою, у 2D - просто вгорі праворуч
+        // під мінікартою
         float y = -24f;
-        if (RetroView.MinimapBottom > 0f) y = -(RetroView.MinimapBottom * canvasRt.rect.height + 14f);
+        if (Minimap.BottomUnits > 0f) y = -(Minimap.BottomUnits + 12f);
         objectivePanel.anchoredPosition = new Vector2(-24f, y);
     }
 

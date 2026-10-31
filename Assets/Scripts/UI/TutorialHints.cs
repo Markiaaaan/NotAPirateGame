@@ -45,8 +45,8 @@ public class TutorialHints : MonoBehaviour
             new Step { text3D = "Ти - прозорий привид. WASD - летіти, миша - роззиратися.",
                        text2D = "Ти - прозорий привид. WASD - летіти.",
                        minTime = 2.5f, maxTime = 10f, done = () => Moved() },
-            new Step { text3D = "У темряві тебе не видно. Світло смолоскипів і ліхтарів тебе виказує - око в кутку покаже, чи тебе видно.",
-                       text2D = "У темряві тебе не видно. Світло смолоскипів і ліхтарів тебе виказує - око в кутку покаже, чи тебе видно.",
+            new Step { text3D = "У темряві тебе не видно. Світло смолоскипів і ліхтарів тебе виказує - на мапі воно позначене жовтими колами.",
+                       text2D = "У темряві тебе не видно. Світло смолоскипів і ліхтарів тебе виказує - на мапі воно позначене жовтими колами.",
                        minTime = 8f, maxTime = 8f },
             new Step { text3D = "Скелети ходять з ліхтарями. Якщо над ворогом «!» - тебе помітили: тікай у темряву, і він загубить слід.",
                        text2D = "Скелети ходять з ліхтарями. Якщо над ворогом «!» - тебе помітили: тікай у темряву, і він загубить слід.",
@@ -55,7 +55,7 @@ public class TutorialHints : MonoBehaviour
                        text2D = "Підлети до глечика, патефона чи дзвону й натисни E. Шум приманить нежить - так можна звільнити прохід.",
                        minTime = 3f, maxTime = 15f, done = () => lureUsed },
             new Step { text3D = "Вихід замкнено. Знайди важіль (жовта точка на мапі) і натисни E. Але він гуркоче на все підземелля!",
-                       text2D = "Вихід замкнено. Знайди важіль і натисни E. Але він гуркоче на все підземелля!",
+                       text2D = "Вихід замкнено. Знайди важіль (жовта точка на мапі) і натисни E. Але він гуркоче на все підземелля!",
                        minTime = 3f, maxTime = 14f, done = () => Unlocked },
             new Step { text3D = "Вихід відчинено! Лети до дверей, поки нежить біжить до важеля.",
                        text2D = "Вихід відчинено! Лети до дверей, поки нежить біжить до важеля.",
@@ -68,6 +68,7 @@ public class TutorialHints : MonoBehaviour
         delay = startDelay;
         if (savedDone) enabled = false;
         SetVisible(0f);
+        canvasRoot.SetActive(GameSettings.TutorialHintsEnabled);
     }
 
     void Start()
@@ -102,6 +103,16 @@ public class TutorialHints : MonoBehaviour
 
     void Update()
     {
+        if (!GameSettings.TutorialHintsEnabled)
+        {
+            // Не витрачаємо кроки й таймери, поки навчання вимкнене.
+            visible = false;
+            show = 0f;
+            SetVisible(0f);
+            canvasRoot.SetActive(false);
+            if (sfx.isPlaying) sfx.Stop();
+            return;
+        }
         // під час паузи віконце ховається, щоб не просвічувало крізь меню паузи
         if (canvasRoot != null && canvasRoot.activeSelf == PauseMenu.IsPaused) canvasRoot.SetActive(!PauseMenu.IsPaused);
         if (PauseMenu.IsPaused || LevelTransition.Busy) return;

@@ -50,7 +50,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7403411612398518515
+    rid: 7639885788112486489
   m_FalloffIntensity: 0.5
   m_Color: {r: 0.4, g: 1, b: 0.6, a: 1}
   m_Intensity: 1.2
@@ -96,7 +96,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7403411612398518515
+    - rid: 7639885788112486489
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 0
@@ -351,6 +351,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelExit
   startsLocked: 0
+  requiresKey: 0
   body: {fileID: 1834807990676323483}
   lockedSprite: {fileID: 21300000, guid: e3b89b285680a0340b02a91add9b1e05, type: 3}
   openFrames:

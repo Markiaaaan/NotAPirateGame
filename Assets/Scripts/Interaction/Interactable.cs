@@ -22,9 +22,9 @@ public abstract class Interactable : MonoBehaviour
     bool used;
     Color baseColor = Color.white;
 
-    public string Prompt => prompt;
+    public virtual string Prompt => prompt;
     public float EnergyCost => energyCost;
-    public bool IsAvailable => !(singleUse && used) && Time.time >= readyTime;
+    public virtual bool IsAvailable => !(singleUse && used) && Time.time >= readyTime;
 
     protected virtual void Awake()
     {

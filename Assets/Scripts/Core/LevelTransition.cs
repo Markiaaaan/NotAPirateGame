@@ -9,6 +9,9 @@ using UnityEngine.UI;
 ///   LevelTransition.Go(index, "РІВЕНЬ 2", "Катакомби", кадри) - привид летить тунелем,
 ///   поки у фоні вантажиться наступна сцена (замість того, щоб пролітати крізь текстуру дверей).
 /// Фон тунелю - Assets/Resources/Transition/passage_back.png і passage_front.png (тайляться по горизонталі).
+/// Чудики в арках - Assets/Resources/Transition/passage_critter.png: маленька картинка на прозорому фоні,
+/// 1 її піксель = 8 пікселів екрана (16x16 = 128x128 на екрані). Якщо ширина вдвічі більша за висоту -
+/// це два кадри анімації поруч. Ноги чудика - нижній середній піксель картинки.
 /// </summary>
 public class LevelTransition : MonoBehaviour
 {
@@ -22,9 +25,19 @@ public class LevelTransition : MonoBehaviour
     GameObject passageRoot;
     Image black, ghost, shadow;
     RawImage back, front;
+    RawImage[] critters = new RawImage[0];
+    bool critterTwoFrames;
+
+    /// <summary>Де стоять чудики: нижній центр у пікселях passage_back (480x270).</summary>
+    static readonly Vector2[] CritterSpots =
+    {
+        new Vector2(76, 198), new Vector2(102, 204), new Vector2(324, 202), new Vector2(354, 196), new Vector2(378, 204),
+    };
+    const float BackW = 480f, BackH = 270f, CritterPixel = 8f;
     Text title, subtitle, loading;
     Sprite[] frames;
     bool busy;
+    bool exitingPassage;
     float animTime, ghostX = 0.42f;
 
     static LevelTransition Get()
@@ -56,6 +69,7 @@ public class LevelTransition : MonoBehaviour
         UIFactory.Stretch(bgBlack.rectTransform);
 
         back = MakeRaw(passageRoot.transform, "Tunnel", Resources.Load<Texture2D>("Transition/passage_back"));
+        MakeCritters(passageRoot.transform, Resources.Load<Texture2D>("Transition/passage_critter"));
         shadow = UIFactory.MakeImage(passageRoot.transform, "Shadow", new Vector2(0.42f, 0.2f), Vector2.zero, new Vector2(200f, 44f),
             new Color(1f, 1f, 1f, 0.8f), UIFactory.UISprite("ui_shadow"));
         shadow.preserveAspect = false;
@@ -76,6 +90,46 @@ public class LevelTransition : MonoBehaviour
         UIFactory.Stretch(black.rectTransform);
         black.raycastTarget = true;
         SetBlack(0f);
+    }
+
+    void MakeCritters(Transform parent, Texture2D tex)
+    {
+        if (tex == null) return;
+        tex.filterMode = FilterMode.Point;
+        tex.wrapMode = TextureWrapMode.Clamp;
+        critterTwoFrames = tex.width == tex.height * 2;
+        float w = (critterTwoFrames ? tex.width / 2 : tex.width) * CritterPixel, h = tex.height * CritterPixel;
+        // кожен чудик двічі: другий підхоплює його на шві, коли фон прокручується
+        critters = new RawImage[CritterSpots.Length * 2];
+        for (int i = 0; i < critters.Length; i++)
+        {
+            var rt = UIFactory.MakeRect(parent, "Critter" + i, Vector2.zero, Vector2.zero, new Vector2(w, h));
+            rt.pivot = new Vector2(0.5f, 0f);
+            var raw = rt.gameObject.AddComponent<RawImage>();
+            raw.texture = tex;
+            raw.raycastTarget = false;
+            raw.uvRect = critterTwoFrames ? new Rect(0f, 0f, 0.5f, 1f) : new Rect(0f, 0f, 1f, 1f);
+            critters[i] = raw;
+        }
+    }
+
+    void AnimateCritters()
+    {
+        if (critters.Length == 0) return;
+        float scroll = animTime * 0.11f;
+        for (int i = 0; i < critters.Length; i++)
+        {
+            int k = i % CritterSpots.Length;
+            Vector2 spot = CritterSpots[k];
+            float x = Mathf.Repeat(spot.x / BackW - scroll, 1f) + (i >= CritterSpots.Length ? 1f : 0f);
+            var rt = critters[i].rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(x, 1f - spot.y / BackH);
+            // підстрибують кожен у своєму ритмі
+            float hop = Mathf.Abs(Mathf.Sin(animTime * 3.2f + k * 1.7f));
+            rt.anchoredPosition = new Vector2(0f, Mathf.Round(hop * hop * 3f) * CritterPixel * 0.5f);
+            if (critterTwoFrames)
+                critters[i].uvRect = new Rect(((int)(animTime * 3f + k) % 2) * 0.5f, 0f, 0.5f, 1f);
+        }
     }
 
     static RawImage MakeRaw(Transform parent, string name, Texture2D tex)
@@ -130,7 +184,10 @@ public class LevelTransition : MonoBehaviour
             title.text = titleText;
             subtitle.text = nameText;
             animTime = 0f;
-            ghostX = -0.15f;
+            exitingPassage = false;
+            Canvas.ForceUpdateCanvases();
+            ghostX = 1f - GhostExitX();
+            Animate(0f);
             float start = Time.unscaledTime;
             yield return Fade(1f, 0f, 0.4f, true);
             while (op.progress < 0.9f || Time.unscaledTime - start < MinPassage)
@@ -138,10 +195,11 @@ public class LevelTransition : MonoBehaviour
                 Animate(Time.unscaledDeltaTime);
                 yield return null;
             }
-            // привид відлітає далі тунелем, екран гасне
-            for (float t = 0f; t < 0.5f; t += Time.unscaledDeltaTime)
+            // Спочатку весь спрайт виходить за екран, і лише потім починається затемнення.
+            exitingPassage = true;
+            while (ghostX < GhostExitX())
             {
-                ghostX += Time.unscaledDeltaTime * 1.2f;
+                ghostX = Mathf.MoveTowards(ghostX, GhostExitX(), Time.unscaledDeltaTime * 1.2f);
                 Animate(Time.unscaledDeltaTime);
                 yield return null;
             }
@@ -164,10 +222,11 @@ public class LevelTransition : MonoBehaviour
     {
         animTime += dt;
         if (back.texture != null) back.uvRect = new Rect(animTime * 0.11f, 0f, 1f, 1f);
+        AnimateCritters();
         if (front.texture != null) front.uvRect = new Rect(animTime * 0.3f, 0f, 1f, 1f);
 
         // привид підлітає до свого місця й погойдується
-        ghostX = Mathf.MoveTowards(ghostX, Mathf.Max(ghostX, 0.42f), dt * 0.9f);
+        if (!exitingPassage) ghostX = Mathf.MoveTowards(ghostX, 0.42f, dt * 0.9f);
         float bob = Mathf.Sin(animTime * 3f);
         var rt = ghost.rectTransform;
         rt.anchorMin = rt.anchorMax = new Vector2(ghostX, 0.45f);
@@ -182,5 +241,14 @@ public class LevelTransition : MonoBehaviour
 
         int dots = (int)(animTime * 3f) % 4;
         loading.text = "ЗАВАНТАЖЕННЯ" + new string('.', dots) + new string(' ', 3 - dots);
+    }
+
+    float GhostExitX()
+    {
+        var parent = (RectTransform)passageRoot.transform;
+        Vector2 size = ghost.rectTransform.rect.size;
+        // Пів діагоналі покриває також погойдування й поворот спрайта.
+        float margin = size.magnitude * 0.5f + 32f;
+        return 1f + margin / Mathf.Max(1f, parent.rect.width);
     }
 }

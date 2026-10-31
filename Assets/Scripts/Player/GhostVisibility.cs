@@ -21,6 +21,7 @@ public class GhostVisibility : MonoBehaviour
     [SerializeField] bool forceExposed;
 
     SpriteRenderer[] sprites;
+    GhostSkin skin;
     float exposureThisFrame;
 
     /// <summary>0 = невидимий, 1 = повністю видимий.</summary>
@@ -52,7 +53,11 @@ public class GhostVisibility : MonoBehaviour
 
     void Apply()
     {
-        float a = Mathf.Lerp(hiddenAlpha, exposedAlpha, Visibility);
+        if (skin == null) skin = GetComponent<GhostSkin>();
+        float visualHiddenAlpha = skin != null && GhostSkinLibrary.HasExtendedAnimations(skin.CurrentSkin)
+            ? Mathf.Max(hiddenAlpha, 0.65f) : hiddenAlpha;
+        // Лише прозорість картинки: Visibility та виявлення ворогами не змінюються.
+        float a = Mathf.Lerp(visualHiddenAlpha, exposedAlpha, Visibility);
         for (int i = 0; i < sprites.Length; i++)
         {
             var c = sprites[i].color;

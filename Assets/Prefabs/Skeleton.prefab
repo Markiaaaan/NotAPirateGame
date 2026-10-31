@@ -127,7 +127,7 @@ MonoBehaviour:
   senseRadius: 0
   walkSpeed: 2.3
   investigateSpeed: 3
-  chaseSpeed: 3.4
+  chaseSpeed: 3.25
   turnSpeed: 300
   viewDistance: 7
   viewAngle: 80
@@ -138,6 +138,12 @@ MonoBehaviour:
   waitAtPoint: 1.2
   searchTime: 4
   lookAroundAngle: 70
+  extraSearchPoints: 2
+  searchSpread: 3
+  lurePathFactor: 1.6
+  moveThreshold: 0.35
+  spiritLoseTime: 2.4
+  whisper: {fileID: 0}
   patrolPoints: []
   body: {fileID: 1015299848837317706}
   walkDown:
@@ -213,7 +219,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7403411612398518505
+    rid: 7639885788112486479
   m_FalloffIntensity: 0.6
   m_Color: {r: 1, g: 0.72, b: 0.35, a: 1}
   m_Intensity: 1.3
@@ -259,7 +265,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7403411612398518505
+    - rid: 7639885788112486479
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 0

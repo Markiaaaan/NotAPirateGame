@@ -13,8 +13,6 @@ using UnityEngine.UI;
 public class MainMenu : MonoBehaviour
 {
     [SerializeField] string gameTitle = "ПРИВИД ПІДЗЕМЕЛЛЯ";
-    [SerializeField] string subtitle = "Підземелля старого міста. Ти - прозорий привид. Вибирайся, заманюючи скелетів і духів шумом.";
-    [SerializeField] string credits = "Halloween Game Jam";
     [Tooltip("Картинка на весь екран за меню (необов'язково)")]
     [SerializeField] Sprite background;
     [Tooltip("Кадри всіх скінів підряд, по 14 на скін (idle 0-3, move 0-3, caught 0-5), як у GhostSkin")]
@@ -53,13 +51,14 @@ public class MainMenu : MonoBehaviour
 
     Page page = Page.Main;
     int selected;
+    int previewSkin;
     float time;
     bool starting;
     Vector2 lastMouse;
 
     AudioSource musicSource, sfxSource;
     Image fade, ghostImage, previewImage;
-    Text titleText, subtitleText, headerText, helpText, hintText, ghostCaption, skinNameText, arrowText;
+    Text titleText, headerText, helpText, ghostCaption, skinNameText, arrowText;
     RectTransform skinPrev, skinNext;
 
     int SkinCount => skinFrames.Length / GhostSkin.FramesPerSkin;
@@ -74,12 +73,7 @@ public class MainMenu : MonoBehaviour
             GameSettings.ApplyScreen();
         }
 
-        musicSource = gameObject.AddComponent<AudioSource>();
-        musicSource.loop = true;
-        musicSource.volume = MusicBase * GameSettings.MusicVolume;
-        musicSource.clip = music;
-        if (music != null) musicSource.Play();
-        sfxSource = gameObject.AddComponent<AudioSource>();
+        EnsureAudioSources();
 
 #if UNITY_EDITOR
         // гру забули перезібрати - беремо кадри прямо з папок
@@ -96,6 +90,45 @@ public class MainMenu : MonoBehaviour
         lastMouse = GameInput.MousePosition;
     }
 
+    void OnEnable()
+    {
+        // Після перекомпіляції Awake не повторюється, а словники й делегати не зберігаються.
+        if (Application.isPlaying && !items.ContainsKey(Page.Main)) RebuildMenu();
+    }
+
+    void EnsureAudioSources()
+    {
+        var sources = GetComponents<AudioSource>();
+        if (musicSource == null) musicSource = sources.Length > 0 ? sources[0] : gameObject.AddComponent<AudioSource>();
+        if (sfxSource == null) sfxSource = sources.Length > 1 ? sources[1] : gameObject.AddComponent<AudioSource>();
+        musicSource.loop = true;
+        musicSource.volume = MusicBase * GameSettings.MusicVolume;
+        musicSource.clip = music;
+        if (music != null && !musicSource.isPlaying) musicSource.Play();
+    }
+
+    void RebuildMenu()
+    {
+        Page previousPage = page;
+        int previousSelection = selected;
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            var child = transform.GetChild(i);
+            if (child.name != "Menu") continue;
+            child.gameObject.SetActive(false);
+            Destroy(child.gameObject);
+        }
+        items.Clear();
+        roots.Clear();
+        thumbs.Clear();
+        thumbFrames.Clear();
+        EnsureAudioSources();
+        Build();
+        ShowPage(previousPage, previousSelection);
+        Animate(0f);
+        lastMouse = GameInput.MousePosition;
+    }
+
     // ================================================================ побудова
 
     void Build()
@@ -109,13 +142,11 @@ public class MainMenu : MonoBehaviour
             bg.preserveAspect = false;
             Stretch(bg.rectTransform);
         }
-        var shade = UIFactory.MakeImage(root, "Shade", c, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.3f));
+        var shade = UIFactory.MakeImage(root, "Shade", c, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.18f));
         Stretch(shade.rectTransform);
 
         titleText = UIFactory.MakeText(root, "Title", gameTitle, 128, top, new Vector2(0f, -56f), new Vector2(1880f, 160f),
             TextAnchor.MiddleCenter, new Color(0.85f, 0.95f, 1f));
-        subtitleText = UIFactory.MakeText(root, "Subtitle", subtitle, 32, top, new Vector2(0f, -212f), new Vector2(1600f, 80f),
-            TextAnchor.UpperCenter, new Color(0.78f, 0.82f, 0.95f));
         headerText = UIFactory.MakeText(root, "Header", "", 80, top, new Vector2(0f, -60f), new Vector2(1600f, 110f),
             TextAnchor.MiddleCenter, new Color(0.85f, 0.95f, 1f));
 
@@ -128,12 +159,8 @@ public class MainMenu : MonoBehaviour
         BuildSkins(root);
         BuildSettings(root);
 
-        helpText = UIFactory.MakeText(root, "Help", "", 32, bottom, new Vector2(0f, 100f), new Vector2(1600f, 40f),
+        helpText = UIFactory.MakeText(root, "Help", "", 32, bottom, new Vector2(0f, 70f), new Vector2(1600f, 40f),
             TextAnchor.MiddleCenter, new Color(0.85f, 0.88f, 1f, 0.9f));
-        hintText = UIFactory.MakeText(root, "Hint", "", 32, bottom, new Vector2(0f, 46f), new Vector2(1600f, 40f),
-            TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.5f));
-        UIFactory.MakeText(root, "Credits", credits, 16, new Vector2(1f, 0f), new Vector2(-24f, 12f), new Vector2(800f, 24f),
-            TextAnchor.LowerRight, new Color(1f, 1f, 1f, 0.4f));
 
         fade = UIFactory.MakeImage(root, "Fade", c, Vector2.zero, Vector2.zero, Color.black);
         Stretch(fade.rectTransform);
@@ -157,18 +184,11 @@ public class MainMenu : MonoBehaviour
 
         string[] names = { "ГРАТИ", "СКІНИ", "НАЛАШТУВАННЯ", "ВИЙТИ" };
         Action[] actions = { StartGame, () => ShowPage(Page.Skins, 0), () => ShowPage(Page.Settings, 0), Quit };
-        string[] helps =
-        {
-            "Почати з передісторії і першого рівня",
-            "Вибрати, як виглядає твій привид",
-            "Гучність, миша, 3D чи 2D, складність",
-            "Вийти з гри",
-        };
         for (int i = 0; i < names.Length; i++)
         {
             var it = AddItem(root, Page.Main, names[i], left, new Vector2(140f, 110f - i * 105f), new Vector2(580f, 90f), 64,
                 TextAnchor.MiddleLeft, actions[i]);
-            it.help = helps[i];
+            it.help = "";
             it.label.rectTransform.offsetMin = new Vector2(104f, 0f);   // місце для стрілки
         }
         // стрілка навпроти вибраного пункту (окремо від тексту, щоб той не зсувався)
@@ -200,9 +220,9 @@ public class MainMenu : MonoBehaviour
 
         var it = AddItem(root, Page.Skins, "", c, new Vector2(0f, -85f), new Vector2(700f, 76f), 64, TextAnchor.MiddleCenter, null);
         it.change = ChangeSkin;
-        it.click = () => ShowPage(Page.Main, 1);
-        it.show = () => SkinName(GameSettings.Skin);
-        it.help = "← → - інший скін, Enter - готово. Вибір зберігається одразу.";
+        it.click = ConfirmSkin;
+        it.show = () => SkinName(previewSkin);
+        it.help = "Натисни на скін, щоб вибрати. ← → — переглянути. Enter — вибрати.";
         skinNameText = it.label;
         skinPrev = UIFactory.MakeText(root, "Prev", "◄", 96, c, new Vector2(-430f, -85f), new Vector2(130f, 110f), TextAnchor.MiddleCenter, Selected).rectTransform;
         skinNext = UIFactory.MakeText(root, "Next", "►", 96, c, new Vector2(430f, -85f), new Vector2(130f, 110f), TextAnchor.MiddleCenter, Selected).rectTransform;
@@ -219,9 +239,9 @@ public class MainMenu : MonoBehaviour
             thumbs.Add(img);
         }
 
-        var back = AddItem(root, Page.Skins, "НАЗАД", c, new Vector2(0f, -316f), new Vector2(360f, 64f), 48, TextAnchor.MiddleCenter,
+        var back = AddItem(root, Page.Skins, "НАЗАД", c, new Vector2(0f, -326f), new Vector2(360f, 64f), 48, TextAnchor.MiddleCenter,
             () => ShowPage(Page.Main, 1));
-        back.help = "Повернутися в меню";
+        back.help = "Повернутися без зміни скіна.";
     }
 
     void BuildSettings(Transform parent)
@@ -231,7 +251,7 @@ public class MainMenu : MonoBehaviour
 
         UIFactory.MakePanel(root, "Panel", c, new Vector2(0f, -10f), new Vector2(1300f, 720f), false, 4f, 0.95f);
 
-        float y = 260f;
+        float y = 270f;
         AddSetting(root, "Музика", ref y, "Гучність музики",
             d => { GameSettings.MusicVolume = Step(GameSettings.MusicVolume, d, 0.1f, 0f, 1f); musicSource.volume = MusicBase * GameSettings.MusicVolume; },
             () => Percent(GameSettings.MusicVolume));
@@ -247,13 +267,16 @@ public class MainMenu : MonoBehaviour
         AddSetting(root, "Складність", ref y, "",
             d => GameSettings.Difficulty = (GameSettings.Difficulty + d + 3) % 3,
             () => GameSettings.DifficultyNames[GameSettings.Difficulty]);
-        AddSetting(root, "Повний екран", ref y, "Працює в зібраній грі (у редакторі Unity нічого не змінює)",
+        AddSetting(root, "Навчальні підказки", ref y, "Показувати підказки про керування та правила гри",
+            d => GameSettings.TutorialHintsEnabled = !GameSettings.TutorialHintsEnabled,
+            () => GameSettings.TutorialHintsEnabled ? "Увімкнено" : "Вимкнено");
+        AddSetting(root, "Повний екран", ref y, "Грати на весь екран або в окремому вікні",
             d => { GameSettings.Fullscreen = !GameSettings.Fullscreen; GameSettings.ApplyScreen(); },
             () => GameSettings.Fullscreen ? "Так" : "Ні");
 
         var back = AddItem(root, Page.Settings, "НАЗАД", c, new Vector2(0f, y - 30f), new Vector2(360f, 70f), 48, TextAnchor.MiddleCenter,
             () => ShowPage(Page.Main, 2));
-        back.help = "Повернутися в меню";
+        back.help = "";
     }
 
     void AddSetting(Transform root, string label, ref float y, string help, Action<int> change, Func<string> show)
@@ -266,7 +289,7 @@ public class MainMenu : MonoBehaviour
         it.show = show;
         it.value = UIFactory.MakeText(it.rt, "Value", "", 48, new Vector2(1f, 0.5f), new Vector2(-30f, 0f), new Vector2(560f, 74f),
             TextAnchor.MiddleCenter, Normal);
-        y -= 88f;
+        y -= 80f;
     }
 
     Item AddItem(Transform parent, Page p, string text, Vector2 anchor, Vector2 pos, Vector2 size, int fontSize,
@@ -287,29 +310,35 @@ public class MainMenu : MonoBehaviour
 
     void ShowPage(Page p, int select)
     {
+        if (p == Page.Skins && page != Page.Skins)
+            previewSkin = Mathf.Clamp(GameSettings.Skin, 0, Mathf.Max(0, SkinCount - 1));
         page = p;
         foreach (var kv in roots) kv.Value.SetActive(kv.Key == p);
         bool main = p == Page.Main;
         titleText.enabled = main;
-        subtitleText.enabled = main;
         headerText.enabled = !main;
         headerText.text = p == Page.Skins ? "СКІНИ ПРИВИДА" : p == Page.Settings ? "НАЛАШТУВАННЯ" : "";
+        headerText.fontSize = 64;
+        headerText.rectTransform.anchoredPosition = new Vector2(0f, -32f);
         ghostImage.enabled = main && ghostImage.sprite != null;
         ghostCaption.enabled = main;
-        hintText.text = " ";
         selected = Mathf.Clamp(select, 0, items[p].Count - 1);
         Refresh();
     }
 
     void Update()
     {
+        if (!items.TryGetValue(page, out var list))
+        {
+            RebuildMenu();
+            return;
+        }
         float dt = Time.deltaTime;
         time += dt;
         Animate(dt);
 
         if (starting) return;
 
-        var list = items[page];
         Vector2 mp = GameInput.MousePosition;
         bool mouseMoved = (mp - lastMouse).sqrMagnitude > 4f;
         lastMouse = mp;
@@ -381,14 +410,20 @@ public class MainMenu : MonoBehaviour
 
     void ClickSkins(Vector2 mp)
     {
+        if (RectTransformUtility.RectangleContainsScreenPoint(previewImage.rectTransform, mp, null))
+        {
+            PlaySelect();
+            ConfirmSkin();
+            return;
+        }
         for (int i = 0; i < thumbFrames.Count; i++)
         {
             if (!RectTransformUtility.RectangleContainsScreenPoint(thumbFrames[i].rectTransform, mp, null)) continue;
-            if (i < SkinCount && i != GameSettings.Skin)
+            if (i < SkinCount)
             {
-                GameSettings.Skin = i;
-                PlayMove();
-                Refresh();
+                previewSkin = i;
+                PlaySelect();
+                ConfirmSkin();
             }
             return;
         }
@@ -399,7 +434,13 @@ public class MainMenu : MonoBehaviour
     void ChangeSkin(int dir)
     {
         if (SkinCount == 0) return;
-        GameSettings.Skin = (GameSettings.Skin + dir + SkinCount) % SkinCount;
+        previewSkin = (previewSkin + dir + SkinCount) % SkinCount;
+    }
+
+    void ConfirmSkin()
+    {
+        if (SkinCount > 0) GameSettings.Skin = previewSkin;
+        ShowPage(Page.Main, 1);
     }
 
     void Refresh()
@@ -427,10 +468,10 @@ public class MainMenu : MonoBehaviour
             help = DifficultyHelp(GameSettings.Difficulty);
         helpText.text = help;
 
-        int skin = GameSettings.Skin;
+        int skin = page == Page.Skins ? previewSkin : GameSettings.Skin;
         for (int i = 0; i < thumbFrames.Count; i++)
             thumbFrames[i].color = i == skin ? new Color(1f, 0.85f, 0.45f, 1f) : new Color(0.55f, 0.55f, 0.65f, 0.9f);
-        ghostCaption.text = SkinCount > 1 ? "Скін: " + SkinName(skin) : "";
+        ghostCaption.text = SkinCount > 1 ? SkinName(skin) : "";
     }
 
     static string DifficultyHelp(int d)
@@ -450,10 +491,10 @@ public class MainMenu : MonoBehaviour
     {
         if (arrowText != null)
             arrowText.rectTransform.anchoredPosition = new Vector2(ArrowX + Mathf.Sin(time * 6f) * 4f, arrowY);
-        int skin = GameSettings.Skin;
+        int skin = page == Page.Skins ? previewSkin : GameSettings.Skin;
         if (ghostImage.enabled)
         {
-            var s = Frame(skin, (int)(time * 5f) % 4);
+            var s = GhostSkinLibrary.AnimatedFrame(skin, "idle", time) ?? Frame(skin, (int)(time * 5f) % 4);
             if (s != null) ghostImage.sprite = s;
             ghostImage.rectTransform.anchoredPosition = new Vector2(520f, -40f + Mathf.Sin(time * 2f) * 14f);
             ghostImage.color = new Color(1f, 1f, 1f, 0.6f + 0.3f * Mathf.Sin(time * 1.3f));
@@ -461,7 +502,10 @@ public class MainMenu : MonoBehaviour
         if (page == Page.Skins)
         {
             // прев'ю: 4 кадри стоїть, 4 кадри летить
-            var s = Frame(skin, (int)(time * 6f) % 8);
+            float cycle = Mathf.Repeat(time, 1.75f);
+            bool flying = cycle >= 1f;
+            var s = GhostSkinLibrary.AnimatedFrame(skin, flying ? "move" : "idle", flying ? cycle - 1f : cycle)
+                ?? Frame(skin, (int)(time * 6f) % 8);
             if (s != null) previewImage.sprite = s;
             previewImage.rectTransform.anchoredPosition = new Vector2(0f, 135f + Mathf.Sin(time * 2.2f) * 8f);
             float pulse = 1f + 0.08f * Mathf.Sin(time * 5f);
@@ -476,6 +520,13 @@ public class MainMenu : MonoBehaviour
 
     Sprite Frame(int skin, int i)
     {
+        if (GhostSkinLibrary.HasExtendedAnimations(skin))
+        {
+            string state = i < 4 ? "idle" : i < 8 ? "move" : "dissolve";
+            int frame = i < 4 ? i : i < 8 ? i - 4 : i - 8;
+            var animated = GhostSkinLibrary.AnimatedFrame(skin, state, frame / GhostSkinLibrary.FrameRate(state));
+            if (animated != null) return animated;
+        }
         int k = skin * GhostSkin.FramesPerSkin + i;
         if (k >= 0 && k < skinFrames.Length && skinFrames[k] != null) return skinFrames[k];
         return i < skinFrames.Length ? skinFrames[i] : null;

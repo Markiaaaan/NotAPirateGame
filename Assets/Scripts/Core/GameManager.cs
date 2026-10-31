@@ -123,6 +123,12 @@ public class GameManager : MonoBehaviour
         int next = SceneManager.GetActiveScene().buildIndex + 1;
         if (next < SceneManager.sceneCountInBuildSettings)
         {
+            // Сюжетний поворот має з'явитися до назви й тунелю п'ятого рівня.
+            if (SceneUtility.GetScenePathByBuildIndex(next).EndsWith("/Twist.unity", StringComparison.OrdinalIgnoreCase))
+            {
+                LevelTransition.Go(next);
+                return;
+            }
             var frames = GhostSkin.Current != null ? GhostSkin.Current.MoveFrames : null;
             LevelTransition.Go(next, nextTitle, nextName, frames);
             return;

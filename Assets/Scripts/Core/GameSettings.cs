@@ -6,6 +6,9 @@ using UnityEngine;
 /// </summary>
 public static class GameSettings
 {
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void SelectDefaultSkinAtStartup() => Skin = 0;
+
     public static readonly string[] DifficultyNames = { "Легко", "Нормально", "Важко" };
 
     static int GetInt(string key, int def) => PlayerPrefs.GetInt(key, def);
@@ -59,6 +62,13 @@ public static class GameSettings
     {
         get => GetInt("Fullscreen", 1) == 1;
         set => SetInt("Fullscreen", value ? 1 : 0);
+    }
+
+    /// <summary>Шість навчальних вікон першого рівня. За замовчуванням увімкнені.</summary>
+    public static bool TutorialHintsEnabled
+    {
+        get => GetInt("TutorialHintsEnabled", 1) == 1;
+        set => SetInt("TutorialHintsEnabled", value ? 1 : 0);
     }
 
     // ---- множники складності ----

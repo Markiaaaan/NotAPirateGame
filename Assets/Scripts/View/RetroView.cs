@@ -31,7 +31,6 @@ public class RetroView : MonoBehaviour
     [SerializeField] float lightScale = 1.6f;
     [Tooltip("Менше = світліші тіні")]
     [SerializeField] float gamma = 0.62f;
-    [SerializeField] bool showMinimap = true;
 
     [Header("Текстури")]
     [SerializeField] Sprite floorA;
@@ -63,6 +62,7 @@ public class RetroView : MonoBehaviour
         public GuardAI guard;
         public LeverLure lever;
         public bool isAlert;
+        public BossTrap stoneTrap;
         public float height;
         public float baseZ;
         public float fixedLight;   // > 0: не освітлюється, а має сталу яскравість
@@ -260,13 +260,14 @@ public class RetroView : MonoBehaviour
             string n = sr.gameObject.name;
             string parent = sr.transform.parent != null ? sr.transform.parent.name : "";
             if (parent == "Floor" || parent == "Walls") continue;
-            if (n.StartsWith("shelf_") || n.StartsWith("wall") || n.StartsWith("floor") || n.StartsWith("column") || n == "Exit" || n == "Alert") continue;
+            if (n.StartsWith("shelf_") || n.StartsWith("wall") || n.StartsWith("floor") || n.StartsWith("column") || n == "Exit" || n == "Alert"
+                || n == "SenseRing" || n == "TrapMark" || n == "MoonDisc") continue;
 
             var guard = sr.GetComponent<GuardAI>();
             if (guard != null)
             {
                 // скелет стоїть на підлозі, дух трохи висить у повітрі
-                float h = guard.IsSpirit ? 1.35f : 1.3f;
+                float h = (guard.IsSpirit ? 1.35f : 1.3f) * Mathf.Abs(sr.transform.lossyScale.y);
                 float z = guard.IsSpirit ? 0.08f : 0f;
                 boards.Add(new Board { t = sr.transform, sr = sr, guard = guard, height = h, baseZ = z, fixedLight = guard.IsSpirit ? 0.9f : 0.8f });
                 boards.Add(new Board { t = sr.transform, sr = sr, guard = guard, isAlert = true, height = 0.35f, baseZ = z + h + 0.05f, fixedLight = 1f });
@@ -274,13 +275,18 @@ public class RetroView : MonoBehaviour
             }
             // ключ висить у повітрі й світиться сам
             bool key = n.StartsWith("Key");
-            boards.Add(new Board { t = sr.transform, sr = sr, height = HeightFor(n), baseZ = key ? 0.35f : 0f,
-                fixedLight = n.StartsWith("pumpkin") || key ? 1f : 0f, lever = sr.GetComponent<LeverLure>() });
+            var trap = sr.GetComponentInParent<BossTrap>();
+            boards.Add(new Board { t = sr.transform, sr = sr, height = HeightFor(n), baseZ = n == "KeyBelt" ? 1.1f : key ? 0.35f : 0f,
+                fixedLight = n.StartsWith("pumpkin") || key || n.StartsWith("TrapChain") ? 1f : 0f, lever = sr.GetComponent<LeverLure>(),
+                stoneTrap = trap != null && trap.Stone == sr ? trap : null });
         }
     }
 
     static float HeightFor(string n)
     {
+        if (n.StartsWith("TrapChain")) return 1.6f;
+        if (n == "HangingStone") return 1.5f;
+        if (n == "KeyBelt") return 0.4f;
         if (n.StartsWith("Mannequin")) return 1.35f;
         if (n.StartsWith("Lamp")) return 1.5f;
         if (n.StartsWith("TV")) return 1.0f;
@@ -383,6 +389,7 @@ public class RetroView : MonoBehaviour
         if (name == "Lantern") return 0.8f;
         if (name == "Aura") return 1.0f;
         if (name == "Glow") return 0.7f;
+        if (name == "Moonbeam") return 1.0f;   // місячне світло падає згори крізь ґрати
         return 1.2f;
     }
 
@@ -486,7 +493,29 @@ public class RetroView : MonoBehaviour
             {
                 float v = (y + 0.5f - topF) / (botF - topF);
                 Shade(hitX, hitY, wallHeight * (1f - v), out float r, out float g, out float b);
-                Put(x, y, Sample(wt, wallU, v), r * sideShade, g * sideShade, b * sideShade, perp);
+                Color32 surface = Sample(wt, wallU, v);
+                if (hit == '#')
+                {
+                    // Холодний камінь із виразними швами відділяє стіни від теплої підлоги.
+                    int row = Mathf.FloorToInt(v * 6f);
+                    float brickU = Mathf.Repeat(wallU * 2f + (row % 2) * 0.5f, 1f);
+                    float brickV = Mathf.Repeat(v * 6f, 1f);
+                    float value = (surface.r + surface.g + surface.b) / 3f;
+                    if (value < 150f)
+                    {
+                        float stone = 108f + value * 0.18f;
+                        float edge = brickV < 0.09f || brickU < 0.045f ? 0.48f
+                            : brickV < 0.18f ? 1.16f : 1f;
+                        surface = new Color32((byte)(stone * 0.82f * edge),
+                            (byte)(stone * 0.97f * edge), (byte)(stone * 1.1f * edge), 255);
+                    }
+                    if (v < 0.025f || v > 0.94f)
+                        surface = new Color32(57, 71, 84, 255);
+                    r = Mathf.Max(r, 0.24f);
+                    g = Mathf.Max(g, 0.24f);
+                    b = Mathf.Max(b, 0.24f);
+                }
+                Put(x, y, surface, r * sideShade, g * sideShade, b * sideShade, perp);
             }
 
             // ---- стеля ----
@@ -542,12 +571,17 @@ public class RetroView : MonoBehaviour
                     continue;
                 }
                 Tex ft = fc == ',' ? tCarpet : ((ci + cj) & 1) == 0 ? tFloorB : tFloorA;
-                Put(x, y, Sample(ft, fx - ci, fy - cj), r, g, b, rd);
+                Color32 floorColor = Sample(ft, fx - ci, fy - cj);
+                for (int t = 0; t < BossTrap.All.Count; t++)
+                {
+                    float mark = BossTrap.All[t].FloorMark(fx - 0.5f, -fy + 0.5f);
+                    if (mark > 0f) { floorColor = Color32.Lerp(floorColor, new Color32(255, 155, 35, 255), mark); break; }
+                }
+                Put(x, y, floorColor, r, g, b, rd);
             }
         }
 
         DrawSprites(wp, posX, posY, dirX, dirY, rightX, rightY, pv, hz, eye);
-        if (showMinimap) DrawMinimap(posX, posY, dirX, dirY);
 
         target.SetPixels32(buf);
         target.Apply(false);
@@ -614,7 +648,7 @@ public class RetroView : MonoBehaviour
         int count = 0;
         foreach (var b in boards)
         {
-            if (b.t == null || count >= vBoard.Length) continue;
+            if (b.t == null || !b.t.gameObject.activeInHierarchy || count >= vBoard.Length) continue;
 
             Sprite s;
             bool flip = false;
@@ -628,7 +662,7 @@ public class RetroView : MonoBehaviour
             }
             if (s == null) continue;
 
-            Vector3 p = b.t.position;
+            Vector3 p = b.stoneTrap != null ? (Vector3)b.stoneTrap.ImpactPosition : b.t.position;
             float relX = p.x + 0.5f - posX, relY = -p.y + 0.5f - posY;
             float depth = relX * dirX + relY * dirY;
             if (depth < 0.2f || depth > maxDistance) continue;
@@ -661,10 +695,11 @@ public class RetroView : MonoBehaviour
 
             float depth = vDepth[i];
             float hW = b.height;
+            float baseZ = b.stoneTrap != null ? b.stoneTrap.StoneHeight : b.baseZ;
             float wW = hW * tx.w / tx.h;
             float sx = W * 0.5f + vLat[i] / depth * pv;
             float hp = hW * pv / depth, wpx = wW * pv / depth;
-            float topF = hz - (b.baseZ + hW - eye) * pv / depth;
+            float topF = hz - (baseZ + hW - eye) * pv / depth;
             float leftF = sx - wpx * 0.5f;
 
             float r, g, bl;
@@ -672,7 +707,7 @@ public class RetroView : MonoBehaviour
             else
             {
                 Vector3 p = b.t.position;
-                Shade(p.x + 0.5f, -p.y + 0.5f, b.baseZ + hW * 0.5f, out r, out g, out bl);
+                Shade(p.x + 0.5f, -p.y + 0.5f, baseZ + hW * 0.5f, out r, out g, out bl);
             }
 
             int x0 = Mathf.Max(0, Mathf.FloorToInt(leftF)), x1 = Mathf.Min(W - 1, Mathf.CeilToInt(leftF + wpx));
@@ -693,85 +728,5 @@ public class RetroView : MonoBehaviour
                 }
             }
         }
-    }
-
-    // ================================================================ мінікарта
-
-    /// <summary>Низ мінікарти як частка висоти екрана (від верху), або -1, якщо мінікарти немає. Для інтерфейсу.</summary>
-    public static float MinimapBottom { get; private set; } = -1f;
-
-    void OnDisable() => MinimapBottom = -1f;
-    void OnDestroy() => MinimapBottom = -1f;
-
-    void DrawMinimap(float posX, float posY, float dirX, float dirY)
-    {
-        const int cell = 2;
-        int mw = grid.Width * cell, mh = grid.Height * cell;
-        int ox = width - mw - 4, oy = 12;
-        if (ox < 0) { MinimapBottom = -1f; return; }
-        MinimapBottom = (oy + mh + 2f) / height;
-        bool blink = Mathf.Repeat(Time.unscaledTime, 0.8f) < 0.5f;
-
-        for (int cy = 0; cy < grid.Height; cy++)
-        for (int cx = 0; cx < grid.Width; cx++)
-        {
-            char c = grid.Get(new Vector2Int(cx, cy));
-            if (c == ' ') continue;
-            Color32 col = c == '#' || c == 'O' ? new Color32(90, 80, 120, 255)
-                : c == 'S' || c == 's' || c == 'C' ? new Color32(70, 55, 45, 255)
-                : c == 'E' ? new Color32(80, 230, 120, 255)
-                : new Color32(20, 22, 34, 255);
-            for (int py = 0; py < cell; py++)
-            for (int px = 0; px < cell; px++)
-                Blend(ox + cx * cell + px, oy + cy * cell + py, col, 0.7f);
-        }
-
-        // відчинений вихід пульсує
-        var exit = LevelExit.Instance;
-        if (exit != null && exit.HasLock && !exit.IsLocked && blink)
-        {
-            Vector3 ep = exit.transform.position;
-            Dot(ox + (int)((ep.x + 0.5f) * cell) + 1, oy + (int)((-ep.y + 0.5f) * cell) + 1, new Color32(140, 255, 160, 255));
-        }
-
-        foreach (var b in boards)
-        {
-            if (b.t == null) continue;
-            // важіль - жовта крапка, що блимає, поки його не потягли
-            if (b.lever != null)
-            {
-                if (b.lever.IsAvailable && blink)
-                {
-                    Vector3 lp = b.t.position;
-                    Dot(ox + (int)((lp.x + 0.5f) * cell) + 1, oy + (int)((-lp.y + 0.5f) * cell) + 1, new Color32(255, 214, 60, 255));
-                }
-                continue;
-            }
-            if (b.guard == null || b.isAlert) continue;
-            Vector3 p = b.t.position;
-            Dot(ox + (int)((p.x + 0.5f) * cell), oy + (int)((-p.y + 0.5f) * cell),
-                b.guard.IsSpirit ? new Color32(190, 110, 255, 255) : new Color32(255, 90, 60, 255));
-        }
-
-        int gx = ox + (int)(posX * cell), gy = oy + (int)(posY * cell);
-        for (int i = 1; i <= 4; i++)
-            Blend(gx + (int)(dirX * i), gy + (int)(dirY * i), new Color32(120, 230, 255, 255), 0.8f);
-        Dot(gx, gy, new Color32(120, 230, 255, 255));
-    }
-
-    void Dot(int x, int y, Color32 c)
-    {
-        Blend(x, y, c, 1f); Blend(x - 1, y, c, 1f); Blend(x, y - 1, c, 1f); Blend(x - 1, y - 1, c, 1f);
-    }
-
-    void Blend(int x, int y, Color32 c, float a)
-    {
-        if (x < 0 || y < 0 || x >= width || y >= height) return;
-        int idx = (height - 1 - y) * width + x;
-        Color32 o = buf[idx];
-        buf[idx] = new Color32(
-            (byte)(o.r + (c.r - o.r) * a),
-            (byte)(o.g + (c.g - o.g) * a),
-            (byte)(o.b + (c.b - o.b) * a), 255);
     }
 }

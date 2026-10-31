@@ -61,6 +61,15 @@ public class LevelGrid : MonoBehaviour
 
     public bool InBounds(Vector2Int c) => c.x >= 0 && c.y >= 0 && c.y < Height && c.x < Width;
     public char Get(Vector2Int c) => InBounds(c) ? rows[c.y][c.x] : ' ';
+
+    /// <summary>Змінити клітинку під час гри (розбитий глечик стає прохідною підлогою).</summary>
+    public void SetCell(Vector2Int c, char ch)
+    {
+        if (!InBounds(c)) return;
+        var r = rows[c.y].ToCharArray();
+        r[c.x] = ch;
+        rows[c.y] = new string(r);
+    }
     public bool IsWalkable(Vector2Int c) => IsWalkable(c, false);
 
     /// <summary>allowWater = true для духів: вони летять і над річкою.</summary>
@@ -82,6 +91,24 @@ public class LevelGrid : MonoBehaviour
             Vector2Int c = WorldToCell(Vector2.Lerp(from, to, i / (float)steps));
             if (c == a || c == b) continue;
             if (BlocksView(c)) return false;
+        }
+        return true;
+    }
+
+    // ЗМІНЕНО: новий метод. Видимість (HasLineOfSight) не бачить воду, а ходьба - бачить.
+    /// <summary>
+    /// Чи можна пройти по прямій від from до to, не зачепивши стіну, полицю чи воду
+    /// (воду - якщо allowWater = false). Клітинка призначення не перевіряється.
+    /// </summary>
+    public bool CanWalkStraight(Vector2 from, Vector2 to, bool allowWater)
+    {
+        Vector2Int a = WorldToCell(from), b = WorldToCell(to);
+        int steps = Mathf.CeilToInt(Vector2.Distance(from, to) / 0.2f);
+        for (int i = 1; i < steps; i++)
+        {
+            Vector2Int c = WorldToCell(Vector2.Lerp(from, to, i / (float)steps));
+            if (c == a || c == b) continue;
+            if (!IsWalkable(c, allowWater)) return false;
         }
         return true;
     }
@@ -120,6 +147,19 @@ public class LevelGrid : MonoBehaviour
     public bool FindPath(Vector2 from, Vector2 to, List<Vector2> result) => FindPath(from, to, result, false);
 
     public bool FindPath(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater)
+        => FindPathInternal(from, to, result, allowWater, false);
+
+    // ЗМІНЕНО: новий метод. Якщо до цілі дійти не можна (кімната за обладунками, привид над рікою,
+    // а ворог не вміє літати), веде до найближчої досяжної клітинки замість того, щоб стояти на місці.
+    public bool FindPathToward(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater)
+        => FindPathInternal(from, to, result, allowWater, true);
+
+    public bool FindPatrolPath(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater,
+        System.Predicate<Vector2Int> allowed)
+        => FindPathInternal(from, to, result, allowWater, true, allowed);
+
+    bool FindPathInternal(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater, bool closestIfBlocked,
+        System.Predicate<Vector2Int> allowed = null)
     {
         result.Clear();
         if (Width == 0) return false;
@@ -141,16 +181,21 @@ public class LevelGrid : MonoBehaviour
         var queue = new Queue<Vector2Int>();
         queue.Enqueue(start);
         bool found = false;
+        Vector2Int best = start;
+        int bestD = int.MaxValue;
 
         while (queue.Count > 0)
         {
             Vector2Int c = queue.Dequeue();
             if (c == goal) { found = true; break; }
+            int dd = (c.x - goal.x) * (c.x - goal.x) + (c.y - goal.y) * (c.y - goal.y);
+            if (dd < bestD) { bestD = dd; best = c; }
 
             foreach (var d in Dirs)
             {
                 var n = c + d;
                 if (!IsWalkable(n, allowWater)) continue;
+                if (allowed != null && !allowed(n)) continue;
                 // не зрізаємо кути по діагоналі
                 if (d.x != 0 && d.y != 0 &&
                     (!IsWalkable(new Vector2Int(c.x + d.x, c.y), allowWater) || !IsWalkable(new Vector2Int(c.x, c.y + d.y), allowWater)))
@@ -162,7 +207,11 @@ public class LevelGrid : MonoBehaviour
             }
         }
 
-        if (!found) return false;
+        if (!found)
+        {
+            if (!closestIfBlocked) return false;
+            goal = best;
+        }
 
         int cur = goal.y * w + goal.x;
         while (cur != startIdx)
