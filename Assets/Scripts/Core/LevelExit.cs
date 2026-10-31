@@ -3,7 +3,8 @@ using UnityEngine;
 
 /// <summary>
 /// Вихід із рівня: двері в стіні.
-/// Якщо на рівні є ключ (*) чи важіль (X), двері спочатку замкнені: відчиняє їх KeyPickup або LeverLure.
+/// Якщо на рівні є важіль (X), двері спочатку замкнені: відчиняються, коли потягнуто ВСІ важелі рівня
+/// (на фінальному рівні їх три).
 /// Незамкнені двері самі розчиняються, коли привид підлітає ближче за openDistance,
 /// і зачиняються, коли він відлітає. Залетів у відчинені двері - рівень пройдено.
 /// Спрайт дверей (body) бере й 3D-вигляд, тож анімацію видно і там.
@@ -32,11 +33,14 @@ public class LevelExit : MonoBehaviour
 
     Transform player;
     bool locked;
+    int leversNeeded, leversPulled;
     float open;
     float lockedMessageTimer;
 
     public bool HasLock => startsLocked;
     public bool IsLocked => locked;
+    public int LeversNeeded => leversNeeded;
+    public int LeversPulled => leversPulled;
     public Sprite CurrentSprite => body != null ? body.sprite : null;
 
     // Викликається, коли додаєш компонент: одразу робить колайдер тригером.
@@ -61,7 +65,20 @@ public class LevelExit : MonoBehaviour
     {
         var pm = FindAnyObjectByType<PlayerMovement>();
         if (pm != null) player = pm.transform;
+        leversNeeded = FindObjectsByType<LeverLure>(FindObjectsSortMode.None).Length;
         UpdateVisual();
+    }
+
+    /// <summary>Потягнули важіль: якщо це останній - двері відмикаються.</summary>
+    public void LeverPulled()
+    {
+        leversPulled++;
+        if (leversPulled >= leversNeeded)
+            Unlock(leversNeeded > 1
+                ? "Останній важіль! Кам'яні ворота відчинено... тікай!"
+                : "Важіль спрацював! Вихід відчинено... але нежить усе чула");
+        else
+            Message?.Invoke($"Важіль {leversPulled} з {leversNeeded}: щось загуркотіло в стінах. Нежить біжить сюди!");
     }
 
     /// <summary>Відімкнути двері (ключем чи важелем).</summary>
@@ -107,7 +124,9 @@ public class LevelExit : MonoBehaviour
             if (lockedMessageTimer > 0f) return;
             lockedMessageTimer = 2f;
             GameAudio.Play(lockedClip);
-            Message?.Invoke("Замкнено! Знайди важіль, щоб відчинити вихід");
+            Message?.Invoke(leversNeeded > 1
+                ? $"Замкнено! Потягни всі важелі: {leversPulled} з {leversNeeded}"
+                : "Замкнено! Знайди важіль, щоб відчинити вихід");
         }
         else if (openFrames.Length == 0 && GameManager.Instance != null)
         {

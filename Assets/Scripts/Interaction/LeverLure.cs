@@ -14,7 +14,6 @@ public class LeverLure : LureObject
     {
         base.OnInteract(who);   // шум + звук, як у будь-якої приманки
         if (body != null && downSprite != null) body.sprite = downSprite;
-        if (LevelExit.Instance != null)
-            LevelExit.Instance.Unlock("Важіль спрацював! Вихід відчинено... але нежить усе чула");
+        if (LevelExit.Instance != null) LevelExit.Instance.LeverPulled();
     }
 }

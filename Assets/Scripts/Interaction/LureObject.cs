@@ -19,6 +19,8 @@ public class LureObject : Interactable
     [SerializeField] float duration;
     [Range(0f, 1f)]
     [SerializeField] float suspicion = 0.15f;
+    [Tooltip("Після використання крізь предмет можна пролітати (розбитий глечик)")]
+    [SerializeField] bool passableAfterUse;
 
     [Header("Ефекти")]
     [SerializeField] AudioSource audioSource;
@@ -44,6 +46,14 @@ public class LureObject : Interactable
     protected override void OnInteract(PlayerInteractor who)
     {
         Activate();
+        if (passableAfterUse) MakePassable();
+    }
+
+    /// <summary>Уламки не заважають: вимикаємо твердий колайдер і звільняємо клітинку для ворогів.</summary>
+    void MakePassable()
+    {
+        foreach (var c in GetComponents<Collider2D>()) if (!c.isTrigger) c.enabled = false;
+        if (LevelGrid.Instance != null) LevelGrid.Instance.SetCell(LevelGrid.WorldToCell(transform.position), '.');
     }
 
     protected void Activate()

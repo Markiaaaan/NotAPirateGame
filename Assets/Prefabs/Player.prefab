@@ -50,7 +50,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7403411612398518503
+    rid: 7403411621006803021
   m_FalloffIntensity: 0.5
   m_Color: {r: 0.6, g: 0.85, b: 1, a: 1}
   m_Intensity: 0.45
@@ -96,7 +96,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7403411612398518503
+    - rid: 7403411621006803021
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 0
@@ -423,7 +423,7 @@ MonoBehaviour:
   - {fileID: 7720531037044958288, guid: 3becc0cc5c68c2945bac6c6210a0ecd8, type: 3}
   - {fileID: 1969590231593095201, guid: 03825255fce3fda4480ca77a01f4e118, type: 3}
   - {fileID: 7134330052271895298, guid: 6b220d3d1c6af1d4f94157bc64fe349a, type: 3}
-  - {fileID: -2054221253060035035, guid: 05f308ed1b533f040aaeef5c54dd389b, type: 3}
+  - {fileID: 7716927718492529189, guid: 05f308ed1b533f040aaeef5c54dd389b, type: 3}
   - {fileID: -4470456424937312342, guid: 91e2514d863120b418ddc7df0faf6c04, type: 3}
   - {fileID: 7437423390903570053, guid: 1d71e4ed0596d754496c37fd5e76ba84, type: 3}
   skinFrames:
@@ -438,7 +438,7 @@ MonoBehaviour:
   - {fileID: 7720531037044958288, guid: 3becc0cc5c68c2945bac6c6210a0ecd8, type: 3}
   - {fileID: 1969590231593095201, guid: 03825255fce3fda4480ca77a01f4e118, type: 3}
   - {fileID: 7134330052271895298, guid: 6b220d3d1c6af1d4f94157bc64fe349a, type: 3}
-  - {fileID: -2054221253060035035, guid: 05f308ed1b533f040aaeef5c54dd389b, type: 3}
+  - {fileID: 7716927718492529189, guid: 05f308ed1b533f040aaeef5c54dd389b, type: 3}
   - {fileID: -4470456424937312342, guid: 91e2514d863120b418ddc7df0faf6c04, type: 3}
   - {fileID: 7437423390903570053, guid: 1d71e4ed0596d754496c37fd5e76ba84, type: 3}
   - {fileID: 21300000, guid: b2744ed48295f694baeda40997de6285, type: 3}

@@ -81,8 +81,6 @@ public class PauseMenu : MonoBehaviour
 
         arrow = UIFactory.MakeText(root.transform, "Arrow", "►", 48, c, new Vector2(-420f, 160f), new Vector2(48f, 70f),
             TextAnchor.MiddleCenter, Selected);
-        UIFactory.MakeText(root.transform, "Hint", "↑↓ - вибір    ← → - змінити    Enter - OK    Esc - продовжити", 32, c,
-            new Vector2(0f, -300f), new Vector2(940f, 40f), TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.55f));
     }
 
     void AddRow(string text, ref float y, Action click, Action<int> change, Func<string> show)

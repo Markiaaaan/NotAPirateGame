@@ -29,8 +29,17 @@ public class IntroCutscene : MonoBehaviour
     [Tooltip("Кадри всіх скінів підряд (для привида в тунелі на екрані переходу)")]
     [SerializeField] Sprite[] skinFrames = new Sprite[0];
 
-    Image picture, fade;
-    Text text, counter;
+    [Header("Привид поверх слайдів (фінал)")]
+    [Tooltip("Для кожного слайда: звідки й куди летить привид (x0, y0, x1, y1; 0..1 від лівого нижнього кута). Порожньо - без привида")]
+    [SerializeField] Vector4[] ghostPaths = new Vector4[0];
+    [Tooltip("Розмір привида для кожного слайда (частка висоти екрана; 0 - не показувати)")]
+    [SerializeField] float[] ghostSizes = new float[0];
+    [SerializeField] float ghostTravelTime = 4f;
+    [Tooltip("На останньому слайді показати великий напис КІНЕЦЬ і статистику проходження")]
+    [SerializeField] bool showStats;
+
+    Image picture, fade, ghostImage;
+    Text text, counter, endTitle, endStats;
     RectTransform pictureRt;
     AudioSource musicSource, sfxSource;
 
@@ -54,6 +63,16 @@ public class IntroCutscene : MonoBehaviour
         picture.preserveAspect = false;
         pictureRt = picture.rectTransform;
         Stretch(pictureRt);
+
+        // привид у вибраному скіні (летить поверх ілюстрації)
+        ghostImage = UIFactory.MakeImage(root, "Ghost", c, Vector2.zero, new Vector2(200f, 200f), Color.white);
+        ghostImage.preserveAspect = true;
+        ghostImage.enabled = false;
+
+        endTitle = UIFactory.MakeText(root, "EndTitle", "", 128, new Vector2(0.5f, 1f), new Vector2(0f, -120f), new Vector2(1600f, 160f),
+            TextAnchor.MiddleCenter, new Color(1f, 0.84f, 0.45f));
+        endStats = UIFactory.MakeText(root, "EndStats", "", 48, new Vector2(0.5f, 1f), new Vector2(0f, -290f), new Vector2(1600f, 70f),
+            TextAnchor.MiddleCenter, new Color(0.8f, 0.9f, 1f));
 
         var panel = UIFactory.MakeImage(root, "TextPanel", bottom, Vector2.zero, new Vector2(1920f, 230f), new Color(0f, 0f, 0f, 0.7f));
         panel.rectTransform.anchorMin = new Vector2(0f, 0f);
@@ -95,6 +114,47 @@ public class IntroCutscene : MonoBehaviour
         float a = Random.Range(0f, Mathf.PI * 2f);
         panDir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
         counter.text = $"{index + 1} / {slides.Length}      Enter - далі      Esc - пропустити";
+
+        bool last = showStats && index == slides.Length - 1;
+        endTitle.text = last ? "КІНЕЦЬ" : "";
+        endStats.text = last ? StatsLine() : "";
+    }
+
+    static string StatsLine()
+    {
+        int caught = GameProgress.TimesCaught;
+        string times = caught % 10 == 1 && caught % 100 != 11 ? "раз"
+            : caught % 10 >= 2 && caught % 10 <= 4 && (caught % 100 < 12 || caught % 100 > 14) ? "рази" : "разів";
+        return $"Час: {GameProgress.FormatTime(GameProgress.RunTime)}     Спіймали: {caught} {times}";
+    }
+
+    /// <summary>Привид летить по шляху слайда: махає кадрами польоту, а долетівши - просто висить і погойдується.</summary>
+    void UpdateGhost()
+    {
+        bool has = index >= 0 && index < ghostPaths.Length && index < ghostSizes.Length && ghostSizes[index] > 0f;
+        ghostImage.enabled = has;
+        if (!has) return;
+
+        Vector4 p = ghostPaths[index];
+        float t = Mathf.Clamp01((time - 0.3f) / ghostTravelTime);
+        float e = t * t * (3f - 2f * t);
+        Vector2 pos = Vector2.Lerp(new Vector2(p.x, p.y), new Vector2(p.z, p.w), e);
+        pos.y += Mathf.Sin(time * 2.2f) * 0.012f;
+        var rt = ghostImage.rectTransform;
+        rt.anchorMin = rt.anchorMax = pos;
+        rt.anchoredPosition = Vector2.zero;
+        float size = ghostSizes[index] * 1080f;
+        rt.sizeDelta = new Vector2(size, size);
+
+        bool flying = t < 1f && (p.z != p.x || p.w != p.y);
+        int frame = (int)(time * (flying ? 8f : 5f)) % 4 + (flying ? 4 : 0);
+        int skin = GameSettings.Skin;
+        int k = skin * GhostSkin.FramesPerSkin + frame;
+        Sprite s = k < skinFrames.Length && skinFrames[k] != null ? skinFrames[k] : frame < skinFrames.Length ? skinFrames[frame] : null;
+        if (s != null) ghostImage.sprite = s;
+        else ghostImage.enabled = false;
+        rt.localScale = new Vector3(p.z < p.x ? -1f : 1f, 1f, 1f);
+        ghostImage.color = new Color(1f, 1f, 1f, 0.9f + 0.1f * Mathf.Sin(time * 3f));
     }
 
     string CurrentLine => index >= 0 && index < lines.Length ? lines[index] : "";
@@ -108,6 +168,7 @@ public class IntroCutscene : MonoBehaviour
         // повільний наїзд камери
         pictureRt.localScale = Vector3.one * (1.04f + time * 0.012f);
         pictureRt.anchoredPosition = panDir * time * 6f;
+        UpdateGhost();
 
         // друк тексту
         string line = CurrentLine;

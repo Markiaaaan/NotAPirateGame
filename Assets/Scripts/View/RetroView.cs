@@ -31,7 +31,6 @@ public class RetroView : MonoBehaviour
     [SerializeField] float lightScale = 1.6f;
     [Tooltip("Менше = світліші тіні")]
     [SerializeField] float gamma = 0.62f;
-    [SerializeField] bool showMinimap = true;
 
     [Header("Текстури")]
     [SerializeField] Sprite floorA;
@@ -260,7 +259,8 @@ public class RetroView : MonoBehaviour
             string n = sr.gameObject.name;
             string parent = sr.transform.parent != null ? sr.transform.parent.name : "";
             if (parent == "Floor" || parent == "Walls") continue;
-            if (n.StartsWith("shelf_") || n.StartsWith("wall") || n.StartsWith("floor") || n.StartsWith("column") || n == "Exit" || n == "Alert") continue;
+            if (n.StartsWith("shelf_") || n.StartsWith("wall") || n.StartsWith("floor") || n.StartsWith("column") || n == "Exit" || n == "Alert"
+                || n == "SenseRing") continue;
 
             var guard = sr.GetComponent<GuardAI>();
             if (guard != null)
@@ -547,7 +547,6 @@ public class RetroView : MonoBehaviour
         }
 
         DrawSprites(wp, posX, posY, dirX, dirY, rightX, rightY, pv, hz, eye);
-        if (showMinimap) DrawMinimap(posX, posY, dirX, dirY);
 
         target.SetPixels32(buf);
         target.Apply(false);
@@ -693,85 +692,5 @@ public class RetroView : MonoBehaviour
                 }
             }
         }
-    }
-
-    // ================================================================ мінікарта
-
-    /// <summary>Низ мінікарти як частка висоти екрана (від верху), або -1, якщо мінікарти немає. Для інтерфейсу.</summary>
-    public static float MinimapBottom { get; private set; } = -1f;
-
-    void OnDisable() => MinimapBottom = -1f;
-    void OnDestroy() => MinimapBottom = -1f;
-
-    void DrawMinimap(float posX, float posY, float dirX, float dirY)
-    {
-        const int cell = 2;
-        int mw = grid.Width * cell, mh = grid.Height * cell;
-        int ox = width - mw - 4, oy = 12;
-        if (ox < 0) { MinimapBottom = -1f; return; }
-        MinimapBottom = (oy + mh + 2f) / height;
-        bool blink = Mathf.Repeat(Time.unscaledTime, 0.8f) < 0.5f;
-
-        for (int cy = 0; cy < grid.Height; cy++)
-        for (int cx = 0; cx < grid.Width; cx++)
-        {
-            char c = grid.Get(new Vector2Int(cx, cy));
-            if (c == ' ') continue;
-            Color32 col = c == '#' || c == 'O' ? new Color32(90, 80, 120, 255)
-                : c == 'S' || c == 's' || c == 'C' ? new Color32(70, 55, 45, 255)
-                : c == 'E' ? new Color32(80, 230, 120, 255)
-                : new Color32(20, 22, 34, 255);
-            for (int py = 0; py < cell; py++)
-            for (int px = 0; px < cell; px++)
-                Blend(ox + cx * cell + px, oy + cy * cell + py, col, 0.7f);
-        }
-
-        // відчинений вихід пульсує
-        var exit = LevelExit.Instance;
-        if (exit != null && exit.HasLock && !exit.IsLocked && blink)
-        {
-            Vector3 ep = exit.transform.position;
-            Dot(ox + (int)((ep.x + 0.5f) * cell) + 1, oy + (int)((-ep.y + 0.5f) * cell) + 1, new Color32(140, 255, 160, 255));
-        }
-
-        foreach (var b in boards)
-        {
-            if (b.t == null) continue;
-            // важіль - жовта крапка, що блимає, поки його не потягли
-            if (b.lever != null)
-            {
-                if (b.lever.IsAvailable && blink)
-                {
-                    Vector3 lp = b.t.position;
-                    Dot(ox + (int)((lp.x + 0.5f) * cell) + 1, oy + (int)((-lp.y + 0.5f) * cell) + 1, new Color32(255, 214, 60, 255));
-                }
-                continue;
-            }
-            if (b.guard == null || b.isAlert) continue;
-            Vector3 p = b.t.position;
-            Dot(ox + (int)((p.x + 0.5f) * cell), oy + (int)((-p.y + 0.5f) * cell),
-                b.guard.IsSpirit ? new Color32(190, 110, 255, 255) : new Color32(255, 90, 60, 255));
-        }
-
-        int gx = ox + (int)(posX * cell), gy = oy + (int)(posY * cell);
-        for (int i = 1; i <= 4; i++)
-            Blend(gx + (int)(dirX * i), gy + (int)(dirY * i), new Color32(120, 230, 255, 255), 0.8f);
-        Dot(gx, gy, new Color32(120, 230, 255, 255));
-    }
-
-    void Dot(int x, int y, Color32 c)
-    {
-        Blend(x, y, c, 1f); Blend(x - 1, y, c, 1f); Blend(x, y - 1, c, 1f); Blend(x - 1, y - 1, c, 1f);
-    }
-
-    void Blend(int x, int y, Color32 c, float a)
-    {
-        if (x < 0 || y < 0 || x >= width || y >= height) return;
-        int idx = (height - 1 - y) * width + x;
-        Color32 o = buf[idx];
-        buf[idx] = new Color32(
-            (byte)(o.r + (c.r - o.r) * a),
-            (byte)(o.g + (c.g - o.g) * a),
-            (byte)(o.b + (c.b - o.b) * a), 255);
     }
 }

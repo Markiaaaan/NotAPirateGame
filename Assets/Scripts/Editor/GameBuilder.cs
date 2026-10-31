@@ -17,7 +17,7 @@ using Object = UnityEngine.Object;
 /// 2. Будує сцени: меню, передісторію, по сцені на кожен файл Assets/Levels/*.txt (Level_01, ...) і фінал.
 /// 3. Записує сцени в Build Profiles у правильному порядку, ставить назву гри та іконку.
 ///
-/// Tools > Ghost > Зібрати Windows-версію - те саме + готова гра в папці Build/Windows.
+/// Tools > Ghost > Зібрати Windows-версію - те саме + готова гра в Build/PryvydPidzemellya і архів Build/PryvydPidzemellya-Windows.zip.
 /// Рівні можна редагувати прямо в .txt і перезбирати. Легенда символів - у README_GAME.md.
 /// </summary>
 public static class GameBuilder
@@ -38,18 +38,19 @@ public static class GameBuilder
 
     static readonly string[] IntroLines =
     {
-        "Старе місто, ніч на Хелловін. Під бруківкою - сотні років підземель, льохів і катакомб.",
-        "Вдень тут водять екскурсії. А вночі прокидаються ті, хто тут похований: скелети з ліхтарями блукають коридорами.",
-        "Серед знахідок - старі сонцезахисні окуляри, яких ніхто не пам'ятає. Кажуть, прокляті.",
-        "Опівночі окуляри ожили. Тепер ти - привид підземелля. У темряві тебе не видно.",
-        "Скелети світять ліхтарями, а злі духи відчувають тебе поруч навіть у темряві. Виберись нагору до світанку: заманюй їх шумом і тримайся подалі від світла!",
+        "Далеко під землею, серед забутих тунелів і стародавніх руїн, ховається підземелля, про яке не знають навіть найсміливіші шукачі пригод.",
+        "Одного загадкового вечора маленький привид випадково потрапив у пастку темних сил. Важкі кам'яні ворота зачинилися за ним, відрізавши шлях назад.",
+        "Тепер він опинився у світі, де кожен коридор ховає небезпеку, кожна тінь може виявитися ворогом, а за кожними дверима чекає нове випробування.",
+        "Щоб повернутися на волю, привид повинен пройти всі рівні підземелля, подолати пастки, розгадати таємниці та знайти шлях до виходу.",
+        "Але пам'ятай: підземелля не відпускає тих, хто здається. Чи зможеш ти допомогти привиду вибратися звідси? Твоя пригода починається зараз!",
     };
 
     static readonly string[] EndingLines =
     {
-        "Остання сходинка - і свіже повітря! Привид вирвався з підземелля просто на світанку.",
-        "Над дахами старого міста сходить сонце. Окуляри блищать: попереду ціле місто, повне пригод.",
-        "КІНЕЦЬ. Дякуємо, що грали!",
+        "Останній важіль - і кам'яні ворота, що колись зачинилися за привидом, із гуркотом поповзли вгору. Згори повіяло свіжим повітрям.",
+        "Сходинка за сходинкою... і ось воно, старе місто! Маленький привид вилітає з підземелля просто на світанку.",
+        "Над дахами сходить сонце. Темні сили лишилися глибоко внизу, і жодні ворота більше його не втримають.",
+        "Дякуємо, що грали!",
     };
 
 
@@ -72,6 +73,21 @@ public static class GameBuilder
     const int LightPoint = 3;
     const int LightGlobal = 4;
 
+    /// <summary>
+    /// Кольорові теми рівнів (рядок "theme:" у файлі рівня). Текстури теми лежать у
+    /// Sprites/Environment/Themes/&lt;тема&gt;/ (чого там немає - береться звичайне). cellar - звичайні текстури.
+    /// light - колір загального світла (і в 2D, і в 3D), fog - колір туману в 3D.
+    /// </summary>
+    static readonly Dictionary<string, (Color light, float intensity, Color fog)> Themes =
+        new Dictionary<string, (Color, float, Color)>
+        {
+            ["cellar"] = (new Color(0.74f, 0.56f, 0.46f), 0.42f, new Color(0.03f, 0.018f, 0.012f)),
+            ["catacombs"] = (new Color(0.64f, 0.64f, 0.5f), 0.42f, new Color(0.022f, 0.024f, 0.016f)),
+            ["river"] = (new Color(0.46f, 0.6f, 0.8f), 0.46f, new Color(0.01f, 0.02f, 0.036f)),
+            ["crypt"] = (new Color(0.62f, 0.48f, 0.78f), 0.42f, new Color(0.022f, 0.012f, 0.032f)),
+            ["gate"] = (new Color(0.5f, 0.7f, 0.56f), 0.4f, new Color(0.01f, 0.026f, 0.018f)),
+        };
+
     class PrefabSet
     {
         public GameObject player, skeleton, spirit, vase, tv, phone, mannequin, lamp, exit, key, lever;
@@ -80,7 +96,7 @@ public static class GameBuilder
     // ===================================================================== меню
 
     /// <summary>Збільшується, коли префаби треба перезібрати (нова тема, нові тексти приманок).</summary>
-    const int PrefabVersion = 5;
+    const int PrefabVersion = 6;
     const string PrefabVersionKey = "GhostGame.PrefabVersion";
 
     [MenuItem("Tools/Ghost/Зібрати всю гру", priority = 0)]
@@ -244,6 +260,9 @@ public static class GameBuilder
                 Enumerable.Repeat(icon, sizes.Length).ToArray(), IconKind.Any);
     }
 
+    /// <summary>Назва архіву з грою. README на GitHub посилається саме на цей файл у релізі.</summary>
+    public const string ZipName = "PryvydPidzemellya-Windows.zip";
+
     [MenuItem("Tools/Ghost/Зібрати Windows-версію (.exe)", priority = 20)]
     public static void BuildWindowsMenu()
     {
@@ -253,7 +272,9 @@ public static class GameBuilder
         string[] ours = EditorBuildSettings.scenes
             .Where(sc => sc.enabled && IsGameScene(sc.path))
             .Select(sc => sc.path).ToArray();
-        string dir = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Build", "Windows");
+        string root = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Build");
+        string dir = Path.Combine(root, "PryvydPidzemellya");
+        if (Directory.Exists(dir)) Directory.Delete(dir, true);   // щоразу чиста збірка, без старих файлів
         Directory.CreateDirectory(dir);
         var options = new BuildPlayerOptions
         {
@@ -263,12 +284,32 @@ public static class GameBuilder
             options = BuildOptions.None,
         };
         var report = BuildPipeline.BuildPlayer(options);
-        if (report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded)
+        if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
         {
-            Debug.Log($"Готово: {options.locationPathName} ({report.summary.totalSize / (1024UL * 1024UL)} МБ)");
-            EditorUtility.RevealInFinder(options.locationPathName);
+            EditorUtility.DisplayDialog("Ghost", "Збірка не вдалася: " + report.summary.result + ". Деталі в Console.", "OK");
+            return;
         }
-        else EditorUtility.DisplayDialog("Ghost", "Збірка не вдалася: " + report.summary.result + ". Деталі в Console.", "OK");
+
+        // папки "..._DoNotShip" / "..._BackUpThisFolder_ButDontShipItWithYourGame" - лише для налагодження,
+        // гравцям вони не потрібні: переносимо їх у Build/DoNotShip
+        string keep = Path.Combine(root, "DoNotShip");
+        foreach (string d in Directory.GetDirectories(dir))
+        {
+            string n = Path.GetFileName(d);
+            if (!n.Contains("DoNotShip") && !n.Contains("DontShip")) continue;
+            Directory.CreateDirectory(keep);
+            string to = Path.Combine(keep, n);
+            if (Directory.Exists(to)) Directory.Delete(to, true);
+            Directory.Move(d, to);
+        }
+
+        // архів для релізу на GitHub: усередині папка PryvydPidzemellya з грою
+        string zip = Path.Combine(root, ZipName);
+        if (File.Exists(zip)) File.Delete(zip);
+        System.IO.Compression.ZipFile.CreateFromDirectory(dir, zip, System.IO.Compression.CompressionLevel.Optimal, true);
+        long mb = new FileInfo(zip).Length / (1024L * 1024L);
+        Debug.Log($"Готово: {options.locationPathName} ({report.summary.totalSize / (1024UL * 1024UL)} МБ), архів {zip} ({mb} МБ)");
+        EditorUtility.RevealInFinder(zip);
     }
 
     static bool IsGameScene(string path)
@@ -369,11 +410,20 @@ public static class GameBuilder
         // фіолетова аура навколо духа
         var aura = Child(go, "Aura", Vector2.zero);
         AddLight(aura, LightPoint, new Color(0.65f, 0.4f, 1f), 0.9f, 1.8f);
+        // шепіт: що ближче дух, то гучніше (гучність рахує GuardAI)
+        var whisper = go.AddComponent<AudioSource>();
+        whisper.clip = A("spirit_whisper");
+        whisper.loop = true;
+        whisper.playOnAwake = false;
+        whisper.spatialBlend = 0f;
+        whisper.volume = 0f;
+        // дух відчуває РУХ у радіусі senseRadius (крізь стіни), літає крізь стіни, повільніший за привида
         Set(go.GetComponent<GuardAI>(),
-            ("isSpirit", true), ("canCrossWater", true), ("lanternRadius", 0f), ("senseRadius", 2.2f),
-            ("walkSpeed", 2.6f), ("investigateSpeed", 3.1f), ("chaseSpeed", 3.5f),
-            ("viewDistance", 6f), ("viewAngle", 100f), ("flashlightDistance", 0f), ("noticeTime", 0.7f),
-            ("animFps", 6f), ("flashlight", aura.transform),
+            ("isSpirit", true), ("canCrossWater", true), ("lanternRadius", 0f), ("senseRadius", 3.2f),
+            ("walkSpeed", 1.5f), ("investigateSpeed", 2.4f), ("chaseSpeed", 2.9f),
+            ("viewDistance", 0f), ("viewAngle", 100f), ("flashlightDistance", 0f), ("noticeTime", 0.9f),
+            ("moveThreshold", 0.35f), ("spiritLoseTime", 2.4f), ("waitAtPoint", 1.6f), ("searchTime", 3f),
+            ("animFps", 6f), ("flashlight", aura.transform), ("whisper", whisper),
             ("alertClip", A("spirit_alert")), ("huhClip", A("spirit_huh")));
         return go;
     }
@@ -431,6 +481,7 @@ public static class GameBuilder
     {
         var go = MakeLure<LureObject>("Vase", "Props/vase.png", new Vector2(0.6f, 0.6f), new Vector2(0f, -0.2f),
             "Розбити глечик", 0f, 1f, true, 7f, 0f, 0.15f, "vase_crash");
+        Set(go.GetComponent<LureObject>(), ("passableAfterUse", true));
         Set(go.AddComponent<LureVisuals>(),
             ("target", go.GetComponent<SpriteRenderer>()),
             ("activeFrames", new[] { S("Props/vase_broken.png") }),
@@ -538,7 +589,7 @@ public static class GameBuilder
     static GameObject MakeLever()
     {
         var go = MakeLure<LeverLure>("Lever", "Props/lever_up.png", new Vector2(0.6f, 0.5f), new Vector2(0f, -0.2f),
-            "Потягти важіль (відчинить вихід, але гучно!)", 0f, 1f, true, 60f, 3f, 0.3f, "lever_pull");
+            "Потягти важіль (гуркіт почує вся нежить!)", 0f, 1f, true, 60f, 3f, 0.3f, "lever_pull");
         Set(go.GetComponent<LeverLure>(),
             ("body", go.GetComponent<SpriteRenderer>()), ("downSprite", S("Props/lever_down.png")));
         return go;
@@ -560,8 +611,7 @@ public static class GameBuilder
             ("moveClip", A("menu_move")),
             ("selectClip", A("menu_select")),
             ("gameTitle", "ПРИВИД ПІДЗЕМЕЛЛЯ"),
-            ("subtitle", "Підземелля старого міста. Ти - прозорий привид. Вибирайся, заманюючи скелетів і духів шумом."),
-            ("credits", "Halloween Game Jam: підземелля старого міста"),
+            ("subtitle", "Маленький привид у пастці підземелля. Вибирайся, заманюючи нежить шумом."),
             ("background", S("UI/menu_background.png")));
 
         EditorSceneManager.SaveScene(scene, MenuScenePath);
@@ -588,8 +638,9 @@ public static class GameBuilder
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         MakeCamera(Vector2.zero, Color.black);
-        var slides = Enumerable.Range(1, 3).Select(i => S($"Intro/ending_{i}.png")).Where(sp => sp != null).ToArray();
+        var slides = Enumerable.Range(1, 4).Select(i => S($"Intro/ending_{i}.png")).Where(sp => sp != null).ToArray();
         var ending = new GameObject("Ending");
+        // привид у вибраному скіні: виринає з воріт, вилітає з арки, летить до сонця, а наостанок висить над написом
         Set(ending.AddComponent<IntroCutscene>(),
             ("slides", slides),
             ("lines", EndingLines),
@@ -597,7 +648,18 @@ public static class GameBuilder
             ("typeClip", A("type_blip")),
             ("autoAdvanceDelay", 5f),
             ("nextSceneIndex", 0),
-            ("markWin", true));
+            ("markWin", true),
+            ("skinFrames", AllSkinFrames()),
+            ("ghostPaths", new[]
+            {
+                new Vector4(0.5f, 0.3f, 0.5f, 0.55f),
+                new Vector4(0.5f, 0.38f, 0.62f, 0.68f),
+                new Vector4(0.12f, 0.55f, 0.58f, 0.62f),
+                new Vector4(0.5f, 0.45f, 0.5f, 0.45f),
+            }),
+            ("ghostSizes", new[] { 0.16f, 0.2f, 0.18f, 0.3f }),
+            ("ghostTravelTime", 4.5f),
+            ("showStats", true));
         EditorSceneManager.SaveScene(scene, EndingScenePath);
     }
 
@@ -607,15 +669,17 @@ public static class GameBuilder
         string[] rows = data.rows;
         int h = rows.Length;
 
-        Sprite floorA = S("Environment/floor_a.png"), floorB = S("Environment/floor_b.png");
-        Sprite wallTop = S("Environment/wall_top.png"), wallFront = S("Environment/wall_front.png");
+        string theme = Themes.ContainsKey(data.theme) ? data.theme : "cellar";
+        var look = Themes[theme];
+        Sprite floorA = TS(theme, "floor_a"), floorB = TS(theme, "floor_b");
+        Sprite wallTop = TS(theme, "wall_top"), wallFront = TS(theme, "wall_front");
         Sprite shelfA = S("Props/shelf_a.png"), shelfB = S("Props/shelf_b.png");
         Sprite counter = S("Props/counter.png"), plant = S("Props/plant.png");
         Sprite shelfC = S("Props/shelf_c.png") ?? shelfA, shelfD = S("Props/shelf_d.png") ?? shelfB;
         Sprite rack = S("Props/rack.png"), boxes = S("Props/boxes.png"), cart = S("Props/cart.png"), pumpkin = S("Props/pumpkin.png");
-        Sprite column = S("Environment/column.png"), carpet = S("Environment/carpet.png") ?? floorA;
+        Sprite column = TS(theme, "column"), carpet = TS(theme, "carpet") ?? floorA;
         Sprite water = S("Environment/water.png") ?? floorA;
-        Sprite[] wallVariants = WallVariantPaths.Select(p => S(p) ?? wallFront).ToArray();
+        Sprite[] wallVariants = WallVariantPaths.Select(p => TS(theme, Path.GetFileNameWithoutExtension(p)) ?? wallFront).ToArray();
 
         var level = new GameObject("Level").transform;
         var floorRoot = Group("Floor", level);
@@ -733,7 +797,7 @@ public static class GameBuilder
         if (number == 1) Set(systems.AddComponent<TutorialHints>(), ("popClip", A("menu_select")));
 
         // Світло й камера
-        AddLight(new GameObject("Global Light 2D"), LightGlobal, new Color(0.62f, 0.56f, 0.6f), 0.42f);
+        AddLight(new GameObject("Global Light 2D"), LightGlobal, look.light, look.intensity);
         var cam = MakeCamera(player != null ? (Vector2)player.transform.position : Vector2.zero, new Color(0.02f, 0.02f, 0.04f));
         if (player != null)
         {
@@ -747,7 +811,7 @@ public static class GameBuilder
             ("floorA", floorA), ("floorB", floorB), ("wallTexture", wallFront),
             ("shelfA", shelfA), ("shelfB", shelfB), ("exitDoor", S("Environment/exit_door.png")),
             ("shelfC", shelfC), ("shelfD", shelfD), ("column", column), ("carpet", carpet), ("wallVariants", wallVariants),
-            ("water", water), ("ceilingTexture", S("Environment/ceiling.png")), ("fogColor", new Color(0.02f, 0.017f, 0.015f)));
+            ("water", water), ("ceilingTexture", TS(theme, "ceiling")), ("fogColor", look.fog));
 
         EditorSceneManager.SaveScene(scene, scenePath);
     }
@@ -782,6 +846,14 @@ public static class GameBuilder
     // ===================================================================== помічники
 
     static Sprite S(string relativePath) => TestSceneBuilder.LoadPixelSprite(Spr + relativePath);
+
+    /// <summary>Текстура з теми рівня, а якщо там такої немає - звичайна з Environment.</summary>
+    static Sprite TS(string theme, string file)
+    {
+        string themed = $"{Spr}Environment/Themes/{theme}/{file}.png";
+        if (theme != "cellar" && File.Exists(themed)) return TestSceneBuilder.LoadPixelSprite(themed);
+        return S($"Environment/{file}.png");
+    }
 
     static Sprite[] Frames(string relativePrefix, int count)
     {
@@ -929,6 +1001,14 @@ public static class GameBuilder
                     for (int k = 0; k < strs.Length; k++) p.GetArrayElementAtIndex(k).stringValue = strs[k];
                     break;
                 case Color c: p.colorValue = c; break;
+                case Vector4[] v4:
+                    p.arraySize = v4.Length;
+                    for (int k = 0; k < v4.Length; k++) p.GetArrayElementAtIndex(k).vector4Value = v4[k];
+                    break;
+                case float[] fl:
+                    p.arraySize = fl.Length;
+                    for (int k = 0; k < fl.Length; k++) p.GetArrayElementAtIndex(k).floatValue = fl[k];
+                    break;
                 case Vector2 v: p.vector2Value = v; break;
                 case Object[] arr:
                     p.arraySize = arr.Length;
@@ -954,6 +1034,7 @@ public static class GameBuilder
     {
         public string name = "";
         public string hint = "";
+        public string theme = "cellar";
         public readonly List<(bool spirit, string[] points)> enemies = new List<(bool, string[])>();
         public string[] rows = new string[0];
 
@@ -981,6 +1062,7 @@ public static class GameBuilder
                 string val = raw.Substring(colon + 1).Trim();
                 if (key == "name") d.name = val;
                 else if (key == "hint") d.hint = val;
+                else if (key == "theme") d.theme = val.ToLowerInvariant();
                 else if (key == "skeleton" || key == "guard" || key == "spirit")
                     d.enemies.Add((key == "spirit", val.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)));
             }

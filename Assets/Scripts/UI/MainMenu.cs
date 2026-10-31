@@ -14,7 +14,6 @@ public class MainMenu : MonoBehaviour
 {
     [SerializeField] string gameTitle = "ПРИВИД ПІДЗЕМЕЛЛЯ";
     [SerializeField] string subtitle = "Підземелля старого міста. Ти - прозорий привид. Вибирайся, заманюючи скелетів і духів шумом.";
-    [SerializeField] string credits = "Halloween Game Jam";
     [Tooltip("Картинка на весь екран за меню (необов'язково)")]
     [SerializeField] Sprite background;
     [Tooltip("Кадри всіх скінів підряд, по 14 на скін (idle 0-3, move 0-3, caught 0-5), як у GhostSkin")]
@@ -59,7 +58,7 @@ public class MainMenu : MonoBehaviour
 
     AudioSource musicSource, sfxSource;
     Image fade, ghostImage, previewImage;
-    Text titleText, subtitleText, headerText, helpText, hintText, ghostCaption, skinNameText, arrowText;
+    Text titleText, subtitleText, headerText, helpText, ghostCaption, skinNameText, arrowText;
     RectTransform skinPrev, skinNext;
 
     int SkinCount => skinFrames.Length / GhostSkin.FramesPerSkin;
@@ -128,12 +127,8 @@ public class MainMenu : MonoBehaviour
         BuildSkins(root);
         BuildSettings(root);
 
-        helpText = UIFactory.MakeText(root, "Help", "", 32, bottom, new Vector2(0f, 100f), new Vector2(1600f, 40f),
+        helpText = UIFactory.MakeText(root, "Help", "", 32, bottom, new Vector2(0f, 70f), new Vector2(1600f, 40f),
             TextAnchor.MiddleCenter, new Color(0.85f, 0.88f, 1f, 0.9f));
-        hintText = UIFactory.MakeText(root, "Hint", "", 32, bottom, new Vector2(0f, 46f), new Vector2(1600f, 40f),
-            TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.5f));
-        UIFactory.MakeText(root, "Credits", credits, 16, new Vector2(1f, 0f), new Vector2(-24f, 12f), new Vector2(800f, 24f),
-            TextAnchor.LowerRight, new Color(1f, 1f, 1f, 0.4f));
 
         fade = UIFactory.MakeImage(root, "Fade", c, Vector2.zero, Vector2.zero, Color.black);
         Stretch(fade.rectTransform);
@@ -157,18 +152,11 @@ public class MainMenu : MonoBehaviour
 
         string[] names = { "ГРАТИ", "СКІНИ", "НАЛАШТУВАННЯ", "ВИЙТИ" };
         Action[] actions = { StartGame, () => ShowPage(Page.Skins, 0), () => ShowPage(Page.Settings, 0), Quit };
-        string[] helps =
-        {
-            "Почати з передісторії і першого рівня",
-            "Вибрати, як виглядає твій привид",
-            "Гучність, миша, 3D чи 2D, складність",
-            "Вийти з гри",
-        };
         for (int i = 0; i < names.Length; i++)
         {
             var it = AddItem(root, Page.Main, names[i], left, new Vector2(140f, 110f - i * 105f), new Vector2(580f, 90f), 64,
                 TextAnchor.MiddleLeft, actions[i]);
-            it.help = helps[i];
+            it.help = "";
             it.label.rectTransform.offsetMin = new Vector2(104f, 0f);   // місце для стрілки
         }
         // стрілка навпроти вибраного пункту (окремо від тексту, щоб той не зсувався)
@@ -202,7 +190,7 @@ public class MainMenu : MonoBehaviour
         it.change = ChangeSkin;
         it.click = () => ShowPage(Page.Main, 1);
         it.show = () => SkinName(GameSettings.Skin);
-        it.help = "← → - інший скін, Enter - готово. Вибір зберігається одразу.";
+        it.help = "";
         skinNameText = it.label;
         skinPrev = UIFactory.MakeText(root, "Prev", "◄", 96, c, new Vector2(-430f, -85f), new Vector2(130f, 110f), TextAnchor.MiddleCenter, Selected).rectTransform;
         skinNext = UIFactory.MakeText(root, "Next", "►", 96, c, new Vector2(430f, -85f), new Vector2(130f, 110f), TextAnchor.MiddleCenter, Selected).rectTransform;
@@ -221,7 +209,7 @@ public class MainMenu : MonoBehaviour
 
         var back = AddItem(root, Page.Skins, "НАЗАД", c, new Vector2(0f, -316f), new Vector2(360f, 64f), 48, TextAnchor.MiddleCenter,
             () => ShowPage(Page.Main, 1));
-        back.help = "Повернутися в меню";
+        back.help = "";
     }
 
     void BuildSettings(Transform parent)
@@ -253,7 +241,7 @@ public class MainMenu : MonoBehaviour
 
         var back = AddItem(root, Page.Settings, "НАЗАД", c, new Vector2(0f, y - 30f), new Vector2(360f, 70f), 48, TextAnchor.MiddleCenter,
             () => ShowPage(Page.Main, 2));
-        back.help = "Повернутися в меню";
+        back.help = "";
     }
 
     void AddSetting(Transform root, string label, ref float y, string help, Action<int> change, Func<string> show)
@@ -296,9 +284,6 @@ public class MainMenu : MonoBehaviour
         headerText.text = p == Page.Skins ? "СКІНИ ПРИВИДА" : p == Page.Settings ? "НАЛАШТУВАННЯ" : "";
         ghostImage.enabled = main && ghostImage.sprite != null;
         ghostCaption.enabled = main;
-        hintText.text = p == Page.Main
-            ? "↑↓ - вибір     Enter - OK     миша теж працює"
-            : "↑↓ - вибір     ← → - змінити     Enter - OK     Esc - назад";
         selected = Mathf.Clamp(select, 0, items[p].Count - 1);
         Refresh();
     }
@@ -386,7 +371,7 @@ public class MainMenu : MonoBehaviour
         for (int i = 0; i < thumbFrames.Count; i++)
         {
             if (!RectTransformUtility.RectangleContainsScreenPoint(thumbFrames[i].rectTransform, mp, null)) continue;
-         if (i < SkinCount)
+            if (i < SkinCount)
             {
                 GameSettings.Skin = i;
                 PlaySelect();

@@ -61,6 +61,15 @@ public class LevelGrid : MonoBehaviour
 
     public bool InBounds(Vector2Int c) => c.x >= 0 && c.y >= 0 && c.y < Height && c.x < Width;
     public char Get(Vector2Int c) => InBounds(c) ? rows[c.y][c.x] : ' ';
+
+    /// <summary>Змінити клітинку під час гри (розбитий глечик стає прохідною підлогою).</summary>
+    public void SetCell(Vector2Int c, char ch)
+    {
+        if (!InBounds(c)) return;
+        var r = rows[c.y].ToCharArray();
+        r[c.x] = ch;
+        rows[c.y] = new string(r);
+    }
     public bool IsWalkable(Vector2Int c) => IsWalkable(c, false);
 
     /// <summary>allowWater = true для духів: вони летять і над річкою.</summary>

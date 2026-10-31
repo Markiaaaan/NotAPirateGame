@@ -273,6 +273,7 @@ MonoBehaviour:
   loudness: 8
   duration: 0
   suspicion: 0.3
+  passableAfterUse: 0
   audioSource: {fileID: 3176746166664730075}
   clip: {fileID: 8300000, guid: 178d4a3e74d340b419352a55bbe873ec, type: 3}
   onActivated:
