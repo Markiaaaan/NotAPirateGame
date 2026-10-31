@@ -332,7 +332,7 @@ public class GuardAI : MonoBehaviour
     /// <summary>Довжина шляху до точки по сітці (float.MaxValue, якщо дійти не можна).</summary>
     float PathLengthTo(Vector2 world)
     {
-        if (grid == null || !grid.FindPath(transform.position, world, tmpPath, canCrossWater))
+        if (grid == null || !grid.FindPathToward(transform.position, world, tmpPath, canCrossWater))
             return float.MaxValue;
 
         float len = 0f;
@@ -468,7 +468,8 @@ public class GuardAI : MonoBehaviour
     void SetPathTo(Vector2 world)
     {
         pathIndex = 0;
-        if (grid == null || !grid.FindPath(transform.position, world, path, canCrossWater)) path.Clear();
+        // ЗМІНЕНО: якщо ціль недосяжна, іде до найближчої досяжної точки
+        if (grid == null || !grid.FindPathToward(transform.position, world, path, canCrossWater)) path.Clear();
     }
 
     /// <summary>Іде по шляху. Повертає true, коли дійшов до кінця.</summary>
