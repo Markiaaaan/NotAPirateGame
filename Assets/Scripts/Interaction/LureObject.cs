@@ -13,7 +13,7 @@ using UnityEngine.Events;
 public class LureObject : Interactable
 {
     [Header("Приманка")]
-    [Tooltip("Радіус, у якому охоронець чує. Видно як коло в Scene при виділенні")]
+    [Tooltip("Радіус, у якому вороги чують. Видно як коло в Scene при виділенні")]
     [SerializeField] float loudness = 8f;
     [Tooltip("0 = разовий шум. Більше нуля = триває стільки секунд (ТВ, дзвінок)")]
     [SerializeField] float duration;
@@ -38,6 +38,7 @@ public class LureObject : Interactable
     {
         base.Awake();
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        if (audioSource != null) audioSource.volume = GameSettings.SfxVolume;
     }
 
     protected override void OnInteract(PlayerInteractor who)
@@ -49,7 +50,11 @@ public class LureObject : Interactable
     {
         LureEvents.Raise(new LureSignal(transform.position, loudness, duration, suspicion, gameObject));
 
-        if (audioSource != null && clip != null) audioSource.PlayOneShot(clip);
+        if (audioSource != null && clip != null)
+        {
+            audioSource.volume = GameSettings.SfxVolume;
+            audioSource.PlayOneShot(clip);
+        }
         onActivated.Invoke();
         Activated?.Invoke();
 

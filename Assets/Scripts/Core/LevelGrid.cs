@@ -3,17 +3,17 @@ using UnityEngine;
 
 /// <summary>
 /// Карта рівня у вигляді сітки символів (та сама, що в Assets/Levels/*.txt).
-/// Клітинка (x, y) лежить у світі в точці (x, -y). Сторожі ходять по ній пошуком шляху
+/// Клітинка (x, y) лежить у світі в точці (x, -y). Скелети й духи ходять по ній пошуком шляху
 /// і перевіряють, чи не заступає їм огляд стіна або полиця.
 /// </summary>
 public class LevelGrid : MonoBehaviour
 {
     public static LevelGrid Instance { get; private set; }
 
-    // Символи, по яких може ходити сторож
-    const string WalkableChars = ".PEm123456789";
+    // Символи, по яких можуть ходити скелети (цифри й літери a..l - точки маршрутів)
+    const string WalkableChars = ".,PEm123456789abcdefghijkl*";
     // Символи, крізь які не видно
-    const string BlocksViewChars = "#SsCp ";
+    const string BlocksViewChars = "#SsCpO ";
 
     [SerializeField] string[] rows = new string[0];
 
@@ -32,12 +32,44 @@ public class LevelGrid : MonoBehaviour
 
     public void SetRows(string[] newRows) => rows = newRows;
 
+    /// <summary>Стабільне "випадкове" число для клітинки: щоб 2D і 3D однаково вибирали варіанти стін і полиць.</summary>
+    public static int CellHash(int x, int y)
+    {
+        unchecked
+        {
+            int h = x * 73856093 ^ y * 19349663;
+            h ^= h >> 13;
+            h *= 0x5bd1e995;
+            h ^= h >> 15;
+            return h & 0x7fffffff;
+        }
+    }
+
+    /// <summary>Який варіант стіни (0 = звичайна) з count варіантів.</summary>
+    public static int WallVariant(int x, int y, int count)
+    {
+        if (count <= 1) return 0;
+        int h = CellHash(x, y) % 14;
+        return h < count - 1 ? h + 1 : 0;
+    }
+
+    /// <summary>Другий варіант полиці (0 чи 1).</summary>
+    public static int ShelfVariant(int x, int y) => (CellHash(x, y) >> 4) & 1;
+
     public static Vector2Int WorldToCell(Vector2 p) => new Vector2Int(Mathf.RoundToInt(p.x), Mathf.RoundToInt(-p.y));
     public static Vector2 CellToWorld(Vector2Int c) => new Vector2(c.x, -c.y);
 
     public bool InBounds(Vector2Int c) => c.x >= 0 && c.y >= 0 && c.y < Height && c.x < Width;
     public char Get(Vector2Int c) => InBounds(c) ? rows[c.y][c.x] : ' ';
-    public bool IsWalkable(Vector2Int c) => InBounds(c) && WalkableChars.IndexOf(rows[c.y][c.x]) >= 0;
+    public bool IsWalkable(Vector2Int c) => IsWalkable(c, false);
+
+    /// <summary>allowWater = true для духів: вони летять і над річкою.</summary>
+    public bool IsWalkable(Vector2Int c, bool allowWater)
+    {
+        if (!InBounds(c)) return false;
+        char ch = rows[c.y][c.x];
+        return WalkableChars.IndexOf(ch) >= 0 || (allowWater && ch == '~');
+    }
     public bool BlocksView(Vector2Int c) => !InBounds(c) || BlocksViewChars.IndexOf(rows[c.y][c.x]) >= 0;
 
     /// <summary>Чи нічого не заступає погляд між двома точками.</summary>
@@ -55,9 +87,11 @@ public class LevelGrid : MonoBehaviour
     }
 
     /// <summary>Найближча клітинка, по якій можна ходити.</summary>
-    public Vector2Int NearestWalkable(Vector2Int c)
+    public Vector2Int NearestWalkable(Vector2Int c) => NearestWalkable(c, false);
+
+    public Vector2Int NearestWalkable(Vector2Int c, bool allowWater)
     {
-        if (IsWalkable(c)) return c;
+        if (IsWalkable(c, allowWater)) return c;
         for (int r = 1; r <= 6; r++)
         {
             Vector2Int best = c;
@@ -67,7 +101,7 @@ public class LevelGrid : MonoBehaviour
             {
                 if (Mathf.Abs(dx) != r && Mathf.Abs(dy) != r) continue;
                 var n = new Vector2Int(c.x + dx, c.y + dy);
-                if (!IsWalkable(n)) continue;
+                if (!IsWalkable(n, allowWater)) continue;
                 float d = dx * dx + dy * dy;
                 if (d < bestD) { bestD = d; best = n; }
             }
@@ -83,13 +117,15 @@ public class LevelGrid : MonoBehaviour
     };
 
     /// <summary>Шлях від from до to (пошук у ширину). Точки шляху записуються в result.</summary>
-    public bool FindPath(Vector2 from, Vector2 to, List<Vector2> result)
+    public bool FindPath(Vector2 from, Vector2 to, List<Vector2> result) => FindPath(from, to, result, false);
+
+    public bool FindPath(Vector2 from, Vector2 to, List<Vector2> result, bool allowWater)
     {
         result.Clear();
         if (Width == 0) return false;
 
-        Vector2Int start = NearestWalkable(WorldToCell(from));
-        Vector2Int goal = NearestWalkable(WorldToCell(to));
+        Vector2Int start = NearestWalkable(WorldToCell(from), allowWater);
+        Vector2Int goal = NearestWalkable(WorldToCell(to), allowWater);
         if (start == goal)
         {
             result.Add(CellToWorld(goal));
@@ -114,10 +150,10 @@ public class LevelGrid : MonoBehaviour
             foreach (var d in Dirs)
             {
                 var n = c + d;
-                if (!IsWalkable(n)) continue;
+                if (!IsWalkable(n, allowWater)) continue;
                 // не зрізаємо кути по діагоналі
                 if (d.x != 0 && d.y != 0 &&
-                    (!IsWalkable(new Vector2Int(c.x + d.x, c.y)) || !IsWalkable(new Vector2Int(c.x, c.y + d.y))))
+                    (!IsWalkable(new Vector2Int(c.x + d.x, c.y), allowWater) || !IsWalkable(new Vector2Int(c.x, c.y + d.y), allowWater)))
                     continue;
                 int idx = n.y * w + n.x;
                 if (parent[idx] != -1) continue;

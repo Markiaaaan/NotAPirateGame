@@ -2,14 +2,14 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// "Контракт" між гравцем і охоронцем. Приманка створює LureSignal, охоронець його слухає.
+/// "Контракт" між гравцем і ворогами. Приманка створює LureSignal, скелети й духи його слухають.
 /// Обидва програмісти можуть працювати незалежно, поки цей файл не змінюється.
 /// </summary>
 public readonly struct LureSignal
 {
     /// <summary>Де сталася подія.</summary>
     public readonly Vector2 Position;
-    /// <summary>Радіус, у якому охоронець це чує.</summary>
+    /// <summary>Радіус, у якому вороги це чують.</summary>
     public readonly float Loudness;
     /// <summary>Скільки секунд приманка "діє". 0 = разова (шум).</summary>
     public readonly float Duration;

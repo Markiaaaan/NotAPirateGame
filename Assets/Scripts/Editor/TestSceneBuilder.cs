@@ -221,7 +221,12 @@ public static class TestSceneBuilder
             if (imp.textureType != TextureImporterType.Sprite) { imp.textureType = TextureImporterType.Sprite; changed = true; }
             if (imp.filterMode != FilterMode.Point) { imp.filterMode = FilterMode.Point; changed = true; }
             if (imp.textureCompression != TextureImporterCompression.Uncompressed) { imp.textureCompression = TextureImporterCompression.Uncompressed; changed = true; }
-            if (!Mathf.Approximately(imp.spritePixelsPerUnit, 32f)) { imp.spritePixelsPerUnit = 32f; changed = true; }
+            // Квадратні спрайти більші за 32 px (сторож 64x64) займають рівно одну клітинку
+            imp.GetSourceTextureWidthAndHeight(out int texW, out int texH);
+            float ppu = texW == texH && texW > 32 && texW <= 256 ? texW : 32f;
+            if (!Mathf.Approximately(imp.spritePixelsPerUnit, ppu)) { imp.spritePixelsPerUnit = ppu; changed = true; }
+            // 3D-вигляд читає пікселі спрайтів, тож їм потрібен Read/Write
+            if (!imp.isReadable) { imp.isReadable = true; changed = true; }
             if (changed) imp.SaveAndReimport();
         }
 

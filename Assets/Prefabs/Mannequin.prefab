@@ -264,8 +264,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c7e3ccb6c0e49ff41822d8b3ac41e91a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MannequinLure
-  prompt: "\u0428\u0442\u043E\u0432\u0445\u043D\u0443\u0442\u0438 \u043C\u0430\u043D\u0435\u043A\u0435\u043D"
-  energyCost: 15
+  prompt: "\u0428\u0442\u043E\u0432\u0445\u043D\u0443\u0442\u0438 \u043E\u0431\u043B\u0430\u0434\u0443\u043D\u043A\u0438"
+  energyCost: 0
   cooldown: 1
   singleUse: 1
   highlightSprite: {fileID: 6833729047219739368}

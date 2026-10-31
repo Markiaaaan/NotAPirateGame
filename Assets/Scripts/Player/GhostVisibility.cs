@@ -2,8 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Прозорість привида. У темряві він ледь видимий, у світлі - проявляється.
-/// Усе, що "світить" на привида (конус ліхтаря охоронця, лампа, екран ТВ), кличе Expose() щокадру,
-/// поки привид у промені. Охоронець перевіряє IsVisible, щоб вирішити, чи бачить він привида.
+/// Усе, що "світить" на привида (ліхтар скелета, смолоскип, патефон), кличе Expose() щокадру,
+/// поки привид у промені. Вороги перевіряють IsVisible, щоб вирішити, чи бачить він привида.
 /// </summary>
 public class GhostVisibility : MonoBehaviour
 {
@@ -12,12 +12,12 @@ public class GhostVisibility : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] float exposedAlpha = 1f;
     [SerializeField] float fadeSpeed = 6f;
 
-    [Header("Для охоронця")]
-    [Tooltip("Видимість вище цього порога = охоронець бачить привида")]
+    [Header("Для ворогів")]
+    [Tooltip("Видимість вище цього порога = ворог бачить привида")]
     [Range(0f, 1f)] [SerializeField] float detectThreshold = 0.5f;
 
     [Header("Налагодження")]
-    [Tooltip("Примусово показати привида (для тесту без охоронця)")]
+    [Tooltip("Примусово показати привида (для тесту)")]
     [SerializeField] bool forceExposed;
 
     SpriteRenderer[] sprites;

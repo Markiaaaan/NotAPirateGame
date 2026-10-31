@@ -13,6 +13,7 @@ public class GhostAnimator : MonoBehaviour
 
     Animator animator;
     PlayerMovement movement;
+    FirstPersonMovement firstPerson;
     PlayerInteractor interactor;
     GhostVisibility visibility;
     Rigidbody2D rb;
@@ -22,6 +23,7 @@ public class GhostAnimator : MonoBehaviour
     {
         animator = GetComponent<Animator>();
         movement = GetComponent<PlayerMovement>();
+        firstPerson = GetComponent<FirstPersonMovement>();
         interactor = GetComponent<PlayerInteractor>();
         visibility = GetComponent<GhostVisibility>();
         rb = GetComponent<Rigidbody2D>();
@@ -46,7 +48,9 @@ public class GhostAnimator : MonoBehaviour
             return;
         }
 
-        animator.SetBool(MovingHash, movement != null && movement.IsMoving);
+        bool moving = (movement != null && movement.enabled && movement.IsMoving)
+                      || (firstPerson != null && firstPerson.enabled && firstPerson.IsMoving);
+        animator.SetBool(MovingHash, moving);
     }
 
     public void PlayCaught()
@@ -58,6 +62,7 @@ public class GhostAnimator : MonoBehaviour
 
         // Привид завмирає: не рухається й не взаємодіє.
         if (movement != null) movement.enabled = false;
+        if (firstPerson != null) firstPerson.enabled = false;
         if (interactor != null) interactor.enabled = false;
         if (rb != null) rb.simulated = false;
     }

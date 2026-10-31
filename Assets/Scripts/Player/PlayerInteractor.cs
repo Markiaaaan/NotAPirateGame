@@ -20,13 +20,17 @@ public class PlayerInteractor : MonoBehaviour
     public event Action<Interactable> OnNotEnoughEnergy;
     public event Action<Interactable> OnInteracted;
 
+    FirstPersonMovement firstPerson;
+
     void Awake()
     {
         Energy = GetComponent<PlayerEnergy>();
+        firstPerson = GetComponent<FirstPersonMovement>();
     }
 
     void Update()
     {
+        if (PauseMenu.IsPaused) return;
         UpdateTarget();
 
         if (Current != null && GameInput.InteractPressed)
@@ -46,7 +50,17 @@ public class PlayerInteractor : MonoBehaviour
             var candidate = hits[i].GetComponentInParent<Interactable>();
             if (candidate == null || !candidate.IsAvailable) continue;
 
-            float d = ((Vector2)hits[i].transform.position - (Vector2)transform.position).sqrMagnitude;
+            Vector2 to = (Vector2)hits[i].transform.position - (Vector2)transform.position;
+            float d = to.sqrMagnitude;
+
+            // Від першої особи беремо те, що перед очима, а не за спиною.
+            if (firstPerson != null && firstPerson.isActiveAndEnabled && d > 0.0001f)
+            {
+                float facing = Vector2.Dot(firstPerson.Forward, to.normalized);
+                if (facing < 0.2f) continue;
+                d *= 1.6f - facing;
+            }
+
             if (d < bestDist)
             {
                 bestDist = d;

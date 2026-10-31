@@ -247,6 +247,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3150552413369362647}
   - component: {fileID: 8855969493303006539}
+  - component: {fileID: 1133420892043988628}
   m_Layer: 0
   m_Name: Light
   m_TagString: Untagged
@@ -287,10 +288,10 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7403411607479910484
+    rid: 7403411612398518513
   m_FalloffIntensity: 0.7
-  m_Color: {r: 1, g: 0.85, b: 0.55, a: 1}
-  m_Intensity: 1.15
+  m_Color: {r: 1, g: 0.65, b: 0.3, a: 1}
+  m_Intensity: 1.25
   m_LightVolumeIntensity: 1
   m_LightVolumeEnabled: 0
   m_ApplyToSortingLayers: 00000000i
@@ -333,7 +334,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7403411607479910484
+    - rid: 7403411612398518513
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 0
@@ -341,3 +342,17 @@ MonoBehaviour:
           rid: -2
         m_Provider2DCache:
           rid: -2
+--- !u!114 &1133420892043988628
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4553166743927932086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7b777b7561c18440982324ed2f17628, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TorchFlicker
+  amount: 0.25
+  speed: 8

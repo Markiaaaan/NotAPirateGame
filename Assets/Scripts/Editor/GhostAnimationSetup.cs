@@ -124,8 +124,10 @@ public static class GhostAnimationSetup
     {
         if (!AssetDatabase.IsValidFolder(FramesFolder)) return new Sprite[0];
 
+        // FindAssets шукає і в підпапках (curly/, swamp/...), а там кадри скінів - їх не беремо
         return AssetDatabase.FindAssets($"ghost_{anim}_ t:Texture2D", new[] { FramesFolder })
             .Select(AssetDatabase.GUIDToAssetPath)
+            .Where(p => Path.GetDirectoryName(p).Replace('\\', '/') == FramesFolder)
             .Where(p => Path.GetFileNameWithoutExtension(p).StartsWith($"ghost_{anim}_"))
             .OrderBy(p => int.TryParse(Path.GetFileNameWithoutExtension(p).Split('_').Last(), out int n) ? n : 0)
             .Select(TestSceneBuilder.LoadPixelSprite)
